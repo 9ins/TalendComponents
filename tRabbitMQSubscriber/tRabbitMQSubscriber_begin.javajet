@@ -1,0 +1,56 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();
+    
+    boolean useFieldLengthHeader    = "true".equals(ElementParameterParser.getValue(node, "__USE_FIELD_LENGTH_HEADER__"));
+    String messageEncoding			= ElementParameterParser.getValue(node, "__MESSAGE_CHARSET__");
+    String delimiter				= ElementParameterParser.getValue(node, "__FIELD_DELIMITER__");
+    String virtualHost				= ElementParameterParser.getValue(node, "__VIRTUAL_HOST__");
+    String queueHost 			 	= ElementParameterParser.getValue(node, "__QUEUE_HOST__");
+    int queuePort			 		= Integer.parseInt(ElementParameterParser.getValue(node, "__QUEUE_PORT__").trim());
+    String queueName		 		= ElementParameterParser.getValue(node, "__QUEUE_NAME__");
+    String userName	 				= ElementParameterParser.getValue(node, "__USER_NAME__");
+    String password	 				= ElementParameterParser.getValue(node, "__USER_PASSWORD__");
+    boolean dieNoMessage   		    = "true".equals(ElementParameterParser.getValue(node, "__DIE_NO_MESSAGE__"));
+    boolean autoAck		   		    = "true".equals(ElementParameterParser.getValue(node, "__AUTO_ACK__"));
+    int consumeDelay				= Integer.parseInt(ElementParameterParser.getValue(node, "__CONSUME_DELAY__").replace("\"", "").trim());
+    int waitingForDie				= Integer.parseInt(ElementParameterParser.getValue(node, "__WAITING_FOR_DIE__").replace("\"", "").trim());
+    boolean dieOnError				= "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+%>
+
+final String <%=cid%>_queueName = <%=queueName%>;
+final boolean <%=cid%>_dieNoMessage = <%=dieNoMessage%>;
+
+long nb_line_<%=cid%> = 0;
+
+com.rabbitmq.client.ConnectionFactory <%=cid%>_connFactory = new com.rabbitmq.client.ConnectionFactory();
+<%=cid%>_connFactory.setUsername(<%=userName%>);
+<%=cid%>_connFactory.setPassword(<%=password%>);
+<%=cid%>_connFactory.setHost(<%=queueHost%>);
+<%=cid%>_connFactory.setPort(<%=queuePort%>);
+<%=cid%>_connFactory.setVirtualHost(<%=virtualHost%>);
+
+
+final com.rabbitmq.client.Connection <%=cid%>_conn = <%=cid%>_connFactory.newConnection();
+final com.rabbitmq.client.Channel <%=cid%>_channel = <%=cid%>_conn.createChannel();
+
+long <%=cid%>_waiting_millis = 0;
+
+while(!<%=cid%>_dieNoMessage || <%=cid%>_waiting_millis <= <%=waitingForDie%>) {
+	//System.out.println("synchronized block......");

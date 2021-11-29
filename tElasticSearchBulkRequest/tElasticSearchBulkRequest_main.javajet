@@ -1,0 +1,136 @@
+		<%@ jet 
+			imports="
+			org.talend.core.model.process.INode 
+			org.talend.core.model.process.ElementParameterParser 
+			org.talend.designer.codegen.config.CodeGeneratorArgument
+			org.talend.core.model.process.IConnection
+			org.talend.core.model.process.IConnectionCategory
+			org.talend.core.model.process.EConnectionType			
+			org.talend.core.model.metadata.IMetadataTable
+			org.talend.core.model.metadata.IMetadataColumn
+			java.util.Map
+			java.util.List
+		" 
+		%>
+
+<%
+		CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+		INode node = (INode)codeGenArgument.getArgument();
+		String cid = node.getUniqueName();
+		
+		String TYPE = ElementParameterParser.getValue(node, "__TYPE__");
+		String INDEX = ElementParameterParser.getValue(node, "__INDEX__");
+		String ID = ElementParameterParser.getValue(node, "__ID__");
+		
+		String DOC_AS_UPSERT = ElementParameterParser.getValue(node, "__DOC_AS_UPSERT__");
+		boolean DIE_ON_ERROR = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+%>
+		<%
+		String inConnName = null;
+		IConnection inConn = null;
+		IMetadataTable inMetatable = null;
+		List<? extends IConnection> inConns = node.getIncomingConnections(EConnectionType.FLOW_MAIN);
+		if(inConns != null && inConns.size() > 0) {
+			inConn = inConns.get(0);
+			inConnName = inConn.getName();
+			inMetatable = inConn.getMetadataTable();
+		}
+		
+		List<? extends IConnection> outConns = node.getOutgoingConnections("FLOW");
+		String outConnName = null;
+		IMetadataTable outMetatable = null;
+		IConnection outConn = null;
+		if(outConns != null && outConns.size() > 0) {
+			outConn = outConns.get(0);
+			outConnName = outConn.getName();
+			outMetatable = outConn.getMetadataTable();
+		}
+		%>
+		
+		java.util.Map<String, Object> <%=cid%>_bulkMap = new java.util.HashMap<String, Object>();								
+		<%
+		if(inMetatable != null) {
+			for(IMetadataColumn column : inMetatable.getListColumns()) {
+				String tType = column.getTalendType().substring(column.getTalendType().indexOf("_")+1);
+				IMetadataTable thisMetatable = node.getMetadataTable(cid);
+				IMetadataColumn thisColumn = thisMetatable.getColumn(column.getLabel());				
+				String type = (thisColumn != null) ? thisColumn.getType() : null;
+				if(column.getLabel().equals("type")) {
+					%>
+					<%=cid%>_bulkMap.put("<%=TYPE%>", <%=inConnName%>.<%=TYPE%>); 		
+					<%
+				} else if(column.getLabel().equals("index")) {
+					%>
+					<%=cid%>_bulkMap.put("<%=INDEX%>", <%=inConnName%>.<%=INDEX%>); 		
+					<%
+				} else if(column.getLabel().equals("id")) {
+					%>
+					<%=cid%>_bulkMap.put("<%=ID%>", <%=inConnName%>.<%=ID%>); 		
+					<%				
+				} else { 
+					%>				
+					//System.out.println("<%=tType%>     <%=type%>");
+					<%
+					if(tType.equals("String") && (type != null && type.equals("Object"))) {
+						%>
+						<%=cid%>_bulkMap.put("<%=column.getLabel()%>", <%=cid%>_gson.fromJson(<%=inConnName%>.<%=column.getLabel()%>, java.util.LinkedHashMap.class));
+						//System.out.println(<%=cid%>_gson.fromJson(<%=inConnName%>.<%=column.getLabel()%>, java.util.LinkedHashMap.class).getClass().getName());
+						<%
+					} else if(tType.equals("String") && (type != null && type.equals("Array"))) {
+						%>
+						<%=cid%>_bulkMap.put("<%=column.getLabel()%>", <%=cid%>_gson.fromJson(<%=inConnName%>.<%=column.getLabel()%>, java.util.List.class));
+						//System.out.println(<%=cid%>_gson.fromJson(<%=inConnName%>.<%=column.getLabel()%>, java.util.List.class).getClass().getName());
+						<%
+					} else {
+						%>
+						<%=cid%>_bulkMap.put("<%=column.getLabel()%>", <%=inConnName%>.<%=column.getLabel()%>);
+						<%
+					} 
+				}
+			}
+		}		
+		%>
+		<%=cid%>_bulkList.add(<%=cid%>_bulkMap);
+				
+		globalMap.put("<%=cid%>_NB_LINE", ((long)globalMap.get("<%=cid%>_NB_LINE"))+1);
+		
+		java.util.List<String> <%=cid%>_resList = null;
+
+		//System.out.println(((long)globalMap.get("<%=cid%>_NB_LINE"))+"  "+<%=cid%>_BULK_COUNT);
+		if((long)globalMap.get("<%=cid%>_NB_LINE") % <%=cid%>_BULK_COUNT == 0) {
+			org.elasticsearch.action.bulk.BulkRequest <%=cid%>_request =  new org.elasticsearch.action.bulk.BulkRequest();			
+			try {				
+				for(java.util.Map map : <%=cid%>_bulkList) {
+					String type = map.remove("<%=TYPE%>")+"";
+					String index = map.remove("<%=INDEX%>")+"";
+					String id = map.remove("<%=ID%>")+"";
+					//System.out.println(type);
+					if(<%=cid%>_TIMEOUT > 0) {
+						<%=cid%>_request.timeout(org.elasticsearch.common.unit.TimeValue.timeValueMinutes(<%=cid%>_TIMEOUT));
+					}	
+					if(type.equalsIgnoreCase("INDEX")) {
+						<%=cid%>_request.add(new org.elasticsearch.action.index.IndexRequest(index).id(id).source(map, org.elasticsearch.common.xcontent.XContentType.JSON));
+					} else if(type.equalsIgnoreCase("UPDATE")) {
+						<%=cid%>_request.add(new org.elasticsearch.action.update.UpdateRequest(index, id).doc(map, org.elasticsearch.common.xcontent.XContentType.JSON).docAsUpsert(<%=DOC_AS_UPSERT%>));
+						//System.out.println(map.toString());
+					} else if(type.equalsIgnoreCase("DELETE")) {
+						<%=cid%>_request.add(new org.elasticsearch.action.delete.DeleteRequest(index, id));
+					} else {
+						throw new RuntimeException("Request type is wrong: "+type);
+					}
+				}
+			} catch(Exception e) {
+				if(<%=cid%>_DIE_ON_ERROR) {
+					throw e;
+				}
+				e.printStackTrace();
+			}		
+			org.elasticsearch.action.bulk.BulkResponse <%=cid%>_res = <%=cid%>_client.bulk(<%=cid%>_request, org.elasticsearch.client.RequestOptions.DEFAULT);
+			
+			globalMap.put("<%=cid%>_FLUSH", 0);
+			<%=cid%>_bulkList.clear();
+			
+			((List)globalMap.get("<%=cid%>_RESPONSE")).addAll(java.util.Arrays.asList(<%=cid%>_res.getItems()).stream().filter(m -> m.isFailed()).map(f -> f.isFailed()+"|"+f.getType()+"|"+f.getIndex()+"|"+f.getId()+"|"+f.getFailureMessage()).collect(java.util.stream.Collectors.toList()));
+		}
+		
+		

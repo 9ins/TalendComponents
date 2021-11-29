@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<COMPONENT> 
+  <HEADER 
+       	AUTHOR="Kooin-Shin" 
+  		PLATEFORM="ALL" 
+       	SERIAL="" 
+      	VERSION="0.90" 
+       	STATUS="ALPHA" 
+		COMPATIBILITY="ALL" 
+ 		RELEASE_DATE="20190104A" 
+	    DATA_AUTO_PROPAGATE="false" 
+    	SCHEMA_AUTO_PROPAGATE="true" 
+    	HAS_CONDITIONAL_OUTPUTS="true"  
+    	STARTABLE="true" 
+		PARTITIONING="AUTO" 
+  		LOG4J_ENABLED="true" 
+  	> 
+    <SIGNATURE/> 
+  </HEADER> 
+
+  <FAMILIES> 
+    <FAMILY>ChaosToCosmos</FAMILY> 
+  </FAMILIES>
+    
+  <DOCUMENTATION>    
+    <URL>http://www.chaostocosmos.com</URL> 
+  </DOCUMENTATION>  
+
+  <CONNECTORS> 
+  	<CONNECTOR NAME="HANDLER_PROCESS" CTYPE="COMPONENT_OK" MAX_OUTPUT="1" LINE_STYLE="2" COLOR="0000BB" />
+    <CONNECTOR CTYPE="COMPONENT_OK" MAX_INPUT="5" MAX_OUTPUT="1" />  
+    <CONNECTOR CTYPE="COMPONENT_ERROR" MAX_INPUT="5" MAX_OUTPUT="1"/>   
+  </CONNECTORS>  
+  
+  <PARAMETERS> 
+      <PARAMETER NAME="HTTP_SERVER" FIELD="COMPONENT_LIST" FILTER="tHttpServer" REQUIRED="true" NUM_ROW="2" GROUP="HANDLER" SHOW="true" DYNAMIC_SETTINGS="true"/>
+      <PARAMETER NAME="USE_UPLOAD_PATH_MAPPING" FIELD="CHECK" NUM_ROW="2" GROUP="HANDLER" SHOW_IF="METHOD == 'POST'"> 
+		<DEFAULT>false</DEFAULT>
+	  </PARAMETER>
+      <PARAMETER NAME="USE_OVERWRITE" FIELD="CHECK" NUM_ROW="2" GROUP="HANDLER" SHOW_IF="METHOD == 'POST'"> 
+		<DEFAULT>true</DEFAULT>
+	  </PARAMETER>
+      <PARAMETER NAME="USE_CREATE_SUB_DIR" FIELD="CHECK" NUM_ROW="2" GROUP="HANDLER" SHOW_IF="METHOD == 'POST'"> 
+		<DEFAULT>false</DEFAULT>
+	  </PARAMETER>
+      <PARAMETER NAME="METHOD" FIELD="CLOSED_LIST" GROUP="HANDLER" NUM_ROW="3">
+		<ITEMS DEFAULT="GET">
+			<ITEM NAME="GET" VALUE="GET"/> 
+			<ITEM NAME="POST" VALUE="POST"/>
+		</ITEMS>
+	  </PARAMETER>
+      <PARAMETER NAME="CHARSET" FIELD="CLOSED_LIST" GROUP="HANDLER" NUM_ROW="3">
+		<ITEMS DEFAULT="UTF-8">
+			<ITEM NAME="UTF-8" VALUE="utf-8"/> 
+			<ITEM NAME="US_ASCII" VALUE="us-ascii"/>
+			<ITEM NAME="EUC_KR" VALUE="euc-kr"/>
+			<ITEM NAME="ISO_8859_1" VALUE="iso-8859-1"/>
+			<ITEM NAME="UTF-16" VALUE="utf-16"/>
+			<ITEM NAME="UTF-16BE" VALUE="utf-16be"/>
+			<ITEM NAME="UTF-16LE" VALUE="utf-16le"/>
+		</ITEMS>
+	  </PARAMETER>
+      <PARAMETER NAME="IO_BUFFER" FIELD="OPENED_LIST" GROUP="HANDLER" NUM_ROW="3">
+		<ITEMS DEFAULT="512K">
+			<ITEM NAME="16K" VALUE="16"/>
+			<ITEM NAME="32K" VALUE="32"/>
+			<ITEM NAME="64K" VALUE="64"/>
+			<ITEM NAME="128K" VALUE="128"/>
+			<ITEM NAME="512K" VALUE="512"/>
+			<ITEM NAME="1M" VALUE="1024"/> 
+			<ITEM NAME="2M" VALUE="2048"/> 
+			<ITEM NAME="3M" VALUE="3072"/>
+			<ITEM NAME="5M" VALUE="5120"/>
+			<ITEM NAME="10M" VALUE="10240"/>
+			<ITEM NAME="20M" VALUE="20480"/>
+			<ITEM NAME="50M" VALUE="51200"/>
+			<ITEM NAME="100M" VALUE="102400"/> 
+		</ITEMS>
+	  </PARAMETER>
+      <PARAMETER NAME="HTTP_CONTEXT" FIELD="TEXT" NUM_ROW="4" GROUP="HANDLER" SHOW="true">
+		<DEFAULT>"/"</DEFAULT>
+	  </PARAMETER>
+      <PARAMETER NAME="UPLOAD_PATH" FIELD="DIRECTORY" NUM_ROW="4" GROUP="HANDLER" SHOW_IF="USE_UPLOAD_PATH_MAPPING == 'true'">
+		<DEFAULT>"."</DEFAULT>
+	  </PARAMETER>
+      <PARAMETER NAME="USE_CREDENTIAL" FIELD="CHECK" NUM_ROW="10" GROUP="AUTH" SHOW="true"> 
+		<DEFAULT>false</DEFAULT>
+	  </PARAMETER>
+      <PARAMETER NAME="USER" FIELD="TEXT" NUM_ROW="11" GROUP="AUTH" SHOW="true" SHOW_IF="USE_CREDENTIAL == 'true'">
+		<DEFAULT>"admin"</DEFAULT>
+	  </PARAMETER>
+      <PARAMETER NAME="PASSWORD" FIELD="TEXT" NUM_ROW="12" GROUP="AUTH" SHOW="true" SHOW_IF="USE_CREDENTIAL == 'true'">
+		<DEFAULT>"1234"</DEFAULT>
+	  </PARAMETER>
+	  <PARAMETER NAME="RESPONSE_CODE" FIELD="OPENED_LIST" GROUP="RESPONSE" NUM_ROW="20"> 
+		<ITEMS DEFAULT="200">
+			<ITEM NAME="100" VALUE="100"/>
+			<ITEM NAME="101" VALUE="101"/>
+			<ITEM NAME="102" VALUE="102"/>
+			<ITEM NAME="200" VALUE="200"/>
+			<ITEM NAME="201" VALUE="201"/>
+			<ITEM NAME="202" VALUE="202"/>
+			<ITEM NAME="203" VALUE="203"/>
+			<ITEM NAME="204" VALUE="204"/>
+			<ITEM NAME="205" VALUE="205"/>
+			<ITEM NAME="206" VALUE="206"/>
+			<ITEM NAME="300" VALUE="300"/>
+			<ITEM NAME="301" VALUE="301"/>
+			<ITEM NAME="302" VALUE="302"/>
+			<ITEM NAME="304" VALUE="304"/>
+			<ITEM NAME="305" VALUE="305"/>
+			<ITEM NAME="307" VALUE="307"/>
+			<ITEM NAME="308" VALUE="308"/>
+			<ITEM NAME="400" VALUE="400"/>
+			<ITEM NAME="401" VALUE="401"/>
+			<ITEM NAME="403" VALUE="403"/>
+			<ITEM NAME="404" VALUE="404"/>
+			<ITEM NAME="405" VALUE="405"/>
+			<ITEM NAME="406" VALUE="406"/>
+			<ITEM NAME="408" VALUE="408"/>
+			<ITEM NAME="414" VALUE="414"/>
+			<ITEM NAME="429" VALUE="429"/>
+			<ITEM NAME="444" VALUE="444"/>
+			<ITEM NAME="449" VALUE="449"/>
+			<ITEM NAME="451" VALUE="451"/>
+			<ITEM NAME="495" VALUE="495"/>
+			<ITEM NAME="496" VALUE="496"/>
+			<ITEM NAME="497" VALUE="497"/>			
+			<ITEM NAME="500" VALUE="500"/>
+			<ITEM NAME="501" VALUE="501"/>
+			<ITEM NAME="502" VALUE="502"/>
+			<ITEM NAME="503" VALUE="503"/>
+			<ITEM NAME="504" VALUE="504"/>
+			<ITEM NAME="505" VALUE="505"/>
+			<ITEM NAME="507" VALUE="507"/>
+			<ITEM NAME="509" VALUE="509"/>
+			<ITEM NAME="511" VALUE="511"/>
+			<ITEM NAME="520" VALUE="520"/>
+		</ITEMS>
+	  </PARAMETER>
+	  <PARAMETER NAME="RESPONSE_LABEL" FIELD="LABEL" NUM_ROW="21" GROUP="RESPONSE" SHOW="true">
+		<DEFAULT>Below field value is default responding to client. If you should be use variables, Preferably use 'globalMap' of pre-created object instance in each worker handler. Because of Multi-thread environment, Be careful concurrent issue When using custom variables.</DEFAULT>
+	  </PARAMETER>	   
+	  <PARAMETER NAME="RESPONSE_LABEL" FIELD="LABEL" NUM_ROW="22" GROUP="RESPONSE" SHOW="true">
+		<DEFAULT>If you set response code and message to globalMap on sub-process component, Default responses are disregarded in response. Then globalMap's values have most priority.</DEFAULT>
+	  </PARAMETER>	   
+	  <PARAMETER NAME="RESPONSE_LABEL" FIELD="LABEL" NUM_ROW="23" GROUP="RESPONSE" SHOW="true">
+		<DEFAULT>globalMap's response key must be RES_CODE and RES_MSG, e.g. globalMap.put("RES_CODE", 200), globalMap.put("RES_MSG", new java.io.File("/web/html/welcome.html"))</DEFAULT>
+	  </PARAMETER>
+	  <PARAMETER NAME="RESPONSE_LABEL" FIELD="LABEL" NUM_ROW="24" GROUP="RESPONSE" SHOW="true">
+		<DEFAULT>Response code must be Integer and message just be allowed type of String, StringBuffer, java.io.File or byte[].</DEFAULT>
+	  </PARAMETER>	  
+	  <PARAMETER NAME="RESPONSE_VALUE" FIELD="TEXT" NUM_ROW="25" GROUP="RESPONSE" SHOW="true">
+		<DEFAULT>"Hello ETL!!!"</DEFAULT>
+	  </PARAMETER>	   
+	  <PARAMETER NAME="RESPONSE_HEADER" FIELD="TABLE" GROUP="RESPONSE" NUM_ROW="26" NB_LINES="3" SHOW="true" >
+		<ITEMS>
+    	   	<ITEM NAME="HEADER_KEY" FIELD="OPENED_LIST">
+				<ITEMS DEFAULT="Content-Type">
+		            <ITEM NAME="Access-Control-Allow-Headers" VALUE="Access-Control-Allow-Headers"/>
+		            <ITEM NAME="Accept-Patch" VALUE="Accept-Patch"/>
+		            <ITEM NAME="Accept-Ranges" VALUE="Accept-Ranges"/>
+		            <ITEM NAME="Cache-Control" VALUE="Cache-Control"/>
+		            <ITEM NAME="Content-Disposition" VALUE="Content-Disposition"/>
+		            <ITEM NAME="Content-Encoding" VALUE="Content-Encoding"/>
+		            <ITEM NAME="Content-Language" VALUE="Content-Language"/>
+		            <ITEM NAME="Content-Length" VALUE="Content-Length"/>
+		            <ITEM NAME="Content-Location" VALUE="Content-Location"/>
+		            <ITEM NAME="Content-Type" VALUE="Content-Type"/>
+		            <ITEM NAME="Date" VALUE="Date"/>
+		            <ITEM NAME="Expires" VALUE="Expires"/>
+		            <ITEM NAME="Last-Modified" VALUE="Last-Modified"/>
+		            <ITEM NAME="Location" VALUE="Location"/>
+		            <ITEM NAME="Server" VALUE="Server"/>
+		            <ITEM NAME="Set-Cookie" VALUE="Set-Cookie"/>
+				</ITEMS>
+    	   	</ITEM>
+        	<ITEM NAME="HEADER_VALUE" FIELD="TEXT" VALUE="&quot;&quot;"/>
+		</ITEMS>
+      </PARAMETER>
+	  <PARAMETER NAME="SYNC" FIELD="CHECK" NUM_ROW="50" SHOW="true">
+		<DEFAULT></DEFAULT>
+	  </PARAMETER>
+  </PARAMETERS>  
+  
+  <ADVANCED_PARAMETERS> 
+	  <PARAMETER NAME="PRINT_PARAMS" FIELD="CHECK" NUM_ROW="1" SHOW="true">
+		<DEFAULT>true</DEFAULT>
+	  </PARAMETER>
+	  <PARAMETER NAME="PRINT_HEADER" FIELD="CHECK" NUM_ROW="2" SHOW="true">
+		<DEFAULT>true</DEFAULT>
+	  </PARAMETER>
+	  <PARAMETER NAME="PRINT_SYS_OUT" FIELD="CHECK" NUM_ROW="10" SHOW="true">
+		<DEFAULT>true</DEFAULT>
+	  </PARAMETER>
+	  <PARAMETER NAME="PRINT_SYS_ERR" FIELD="CHECK" NUM_ROW="11" SHOW="true">
+		<DEFAULT>true</DEFAULT>
+	  </PARAMETER>
+  </ADVANCED_PARAMETERS>  
+
+  <CODEGENERATION> 
+    <IMPORTS> 
+      <IMPORT MODULE="commons-fileupload-1.4.jar" NAME="commons-fileupload-1.4" REQUIRED="true"/>  
+      <IMPORT MODULE="commons-io-2.6.jar" NAME="commons-io-2.6" REQUIRED="true"/>  
+      <IMPORT MODULE="servlet.jar" NAME="servlet" REQUIRED="true"/>  
+      <IMPORT MODULE="chaos.http.0.9b.jar" NAME="chaos.http.0.9b" REQUIRED="true"/>
+      <IMPORT MODULE="image4j-0.7.2.jar" NAME="image4j-0.7.2" REQUIRED="true"/> 
+    </IMPORTS> 
+  </CODEGENERATION>  
+
+  <RETURNS> 
+    <RETURN AVAILABILITY="FLOW" NAME="NB_TOTAL" TYPE="id_Long"/> 
+    <RETURN AVAILABILITY="FLOW" NAME="NB_SUCCESS" TYPE="id_Long"/> 
+    <RETURN AVAILABILITY="FLOW" NAME="NB_FAIL" TYPE="id_Long"/>
+  </RETURNS> 
+
+</COMPONENT>

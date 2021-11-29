@@ -1,0 +1,246 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    boolean useFieldLengthHeader    = "true".equals(ElementParameterParser.getValue(node, "__USE_FIELD_LENGTH_HEADER__"));
+    String delimiter				= ElementParameterParser.getValue(node, "__FIELD_DELIMITER__");
+    String messageEncoding			= ElementParameterParser.getValue(node, "__MESSAGE_CHARSET__");
+    boolean autoAck		   		    = "true".equals(ElementParameterParser.getValue(node, "__AUTO_ACK__"));
+    boolean useDelay	   		    = "true".equals(ElementParameterParser.getValue(node, "__USE_CONSUME_DELAY__"));
+    int consumeDelay				= Integer.parseInt(ElementParameterParser.getValue(node, "__CONSUME_DELAY__").replace("\"", "").trim());
+    boolean dieOnError				= "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+    
+%>   
+	long <%=cid%>_deliveryTag = -1;
+	try {
+		//System.out.println("notifying.....");
+		com.rabbitmq.client.GetResponse <%=cid%>_gr = <%=cid%>_channel.basicGet(<%=cid%>_queueName, <%=autoAck%>);
+		if(<%=cid%>_gr == null) {
+			<%=cid%>_waiting_millis += 10;
+			Thread.sleep(10);
+			continue;
+		}
+		byte[] <%=cid%>_poll = <%=cid%>_gr.getBody();		
+		<%=cid%>_deliveryTag = <%=cid%>_gr.getEnvelope().getDeliveryTag();
+		
+		//System.out.println("receive msg. id : "+<%=cid%>_deliveryTag);			
+		<%=cid%>_waiting_millis = 0;
+    
+		java.util.LinkedList<byte[]> <%=cid%>_col_vals = new java.util.LinkedList<byte[]>();
+		java.io.ByteArrayInputStream <%=cid%>_bais = new java.io.ByteArrayInputStream(<%=cid%>_poll);
+	
+		if(<%=useFieldLengthHeader%>) {
+			byte[] <%=cid%>_header = new byte[Integer.BYTES];
+			while(<%=cid%>_bais.read(<%=cid%>_header, 0, <%=cid%>_header.length) > 0) {
+				java.nio.ByteBuffer <%=cid%>_hbuffer = java.nio.ByteBuffer.allocate(Integer.BYTES);
+				int size = ((java.nio.ByteBuffer)<%=cid%>_hbuffer.put(<%=cid%>_header).flip()).getInt();
+				//System.out.println("size: "+size);
+				if(size > 0) {
+					byte[] body = new byte[size];
+					<%=cid%>_bais.read(body, 0, body.length);
+					//System.out.println("body: "+body.length);
+					if(body[0] != '\0') {
+						<%=cid%>_col_vals.add(body);
+					} else {
+						<%=cid%>_col_vals.add(null);
+					}
+				}
+				<%=cid%>_hbuffer.clear();
+			}
+		} else {
+			String <%=cid%>_body = new String(<%=cid%>_poll, "<%=messageEncoding%>");		
+			<%=cid%>_col_vals = java.util.Arrays.stream(<%=cid%>_body.split(java.util.regex.Pattern.quote(<%=delimiter%>))).map(e -> {
+				try {
+					return e.getBytes("<%=messageEncoding%>");
+				} catch(Exception ex) {
+					ex.printStackTrace();
+				}
+				return null;
+			}).collect(java.util.stream.Collectors.toCollection(java.util.LinkedList<byte[]>::new));
+		}
+		java.io.ByteArrayInputStream <%=cid%>_object_byte_stream = null;
+		java.io.ObjectInputStream <%=cid%>_object_stream = null;
+		byte[] <%=cid%>_column_data = null;
+		<%
+		List< ? extends IConnection> outConns = node.getOutgoingConnections("FLOW");
+		if(outConns != null && !outConns.isEmpty()) { //a
+			for(IConnection outConn : outConns) {	//b
+				String outName = outConn.getName();
+				IMetadataTable metaTable = node.getMetadataList().get(0);
+				List<IMetadataColumn> columns = metaTable.getListColumns();
+				for(int i=0; i<columns.size(); i++) { //3
+					IMetadataColumn column = columns.get(i);
+					String columnNm = column.getLabel();
+					String columnType = column.getTalendType();
+					%>
+					if(!"<%=columnType%>".equals("id_String") && !<%=useFieldLengthHeader%>) {
+						throw new RuntimeException("[COLUMN_TYPE_ERROR]In delimiter mode, You can only define String type in schema.");
+					}
+					<%				
+					if(columnType.equals("id_byte[]")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						<%=outName%>.<%=columnNm%> = <%=cid%>_column_data != null ? <%=cid%>_column_data : null;
+					<%
+					} else if(columnType.equals("id_Date")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {					
+							<%=outName%>.<%=columnNm%> = new SimpleDateFormat(<%=column.getPattern()%>).parse(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}
+					<%
+					} else if(columnType.equals("id_Boolean")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = Boolean.parseBoolean(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}
+					<%
+					} else if(columnType.equals("id_Byte")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = Byte.parseByte(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}						
+					<%
+					} else if(columnType.equals("id_Character")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = new String(<%=cid%>_column_data, "<%=messageEncoding%>").charAt(0);
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}							
+					<%
+					} else if(columnType.equals("id_Double")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = Double.parseDouble(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}							
+					<%
+					} else if(columnType.equals("id_Float")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = Float.parseFloat(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}							
+					<%
+					} else if(columnType.equals("id_BigDecimal")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = Long.parseLong(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}							
+					<%
+					} else if(columnType.equals("id_Integer")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = Integer.parseInt(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}							
+					<%
+					} else if(columnType.equals("id_Long")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = Long.parseLong(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}							
+					<%
+					} else if(columnType.equals("id_Short")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = Short.parseShort(new String(<%=cid%>_column_data, "<%=messageEncoding%>"));
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}							
+					<%
+					} else if(columnType.equals("id_String")) {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=outName%>.<%=columnNm%> = new String(<%=cid%>_column_data, "<%=messageEncoding%>");
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}							
+					<%
+					} else {
+					%>
+						<%=cid%>_column_data = <%=cid%>_col_vals.pollFirst();
+						if(<%=cid%>_column_data != null) {
+							<%=cid%>_object_byte_stream = new java.io.ByteArrayInputStream(<%=cid%>_column_data);
+							<%=cid%>_object_stream = new java.io.ObjectInputStream(<%=cid%>_object_byte_stream);
+							<%
+							if(columnType.equals("id_Object")) {
+							%>
+								<%=outName%>.<%=columnNm%> = <%=cid%>_object_stream.readObject();
+							<%
+							} else if(columnType.equals("id_List")) {
+							%>
+								<%=outName%>.<%=columnNm%> = (List)<%=cid%>_object_stream.readObject();
+							<%
+							} else if(columnType.equals("id_Document")) {
+							%>
+								<%=outName%>.<%=columnNm%> = (Document)<%=cid%>_object_stream.readObject();
+							<%
+							}
+							%>
+							<%=cid%>_object_stream.close();
+						} else {
+							<%=outName%>.<%=columnNm%> = null;
+						}
+					<%
+					}
+				} //3
+			} //b
+		} //a
+		%>
+		if(!<%=autoAck%>) {
+			<%=cid%>_channel.basicAck(<%=cid%>_deliveryTag, false);
+		}
+		if(<%=useDelay%> && <%=consumeDelay%> > 0) {
+			Thread.sleep(<%=consumeDelay%>);
+		}
+		nb_line_<%=cid%>++;
+		tos_count_<%=cid%>++;
+		
+	} catch(Exception e) {
+		if(<%=dieOnError%>) {
+			throw new TalendException(e, "<%=cid%>", globalMap);
+		} else {
+			e.printStackTrace();
+		}
+	}

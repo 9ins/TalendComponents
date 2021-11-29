@@ -1,0 +1,44 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+%>
+
+end_Hash.put("<%=cid%>", System.currentTimeMillis());
+ok_Hash.put("<%=cid%>", true);
+
+while(<%=cid%>_threadList.stream().anyMatch(t -> t.isAlive()) && (System.currentTimeMillis()-<%=cid%>_startMillis) < <%=cid%>_timeoutMillis) {
+	if(<%=cid%>_exceptionList.size() > 0) {
+		TalendException <%=cid%>_exception = <%=cid%>_exceptionList.remove(0);
+		ok_Hash.put(<%=cid%>_exception.getCurrentComponent(), true);
+		if(<%=cid%>_dieOnError) {
+			throw new TalendException(<%=cid%>_exception, currentComponent, globalMap);
+		} else {
+			<%=cid%>_exception.printStackTrace();
+		}
+	}
+	try {
+		Thread.sleep(10);
+	} catch(Exception e) {
+		e.printStackTrace();
+	}
+}
+
+System.out.println("========== End of Multi Process ========== :)");
+
+if(true) return;

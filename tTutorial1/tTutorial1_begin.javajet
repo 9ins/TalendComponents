@@ -1,0 +1,45 @@
+<%@ jet 
+imports="
+org.talend.core.model.process.INode
+org.talend.core.model.process.ElementParameterParser
+org.talend.core.model.metadata.IMetadataTable 
+org.talend.core.model.metadata.IMetadataColumn 
+org.talend.core.model.process.IConnection
+org.talend.core.model.process.IConnectionCategory
+org.talend.designer.codegen.config.CodeGeneratorArgument
+org.talend.core.model.metadata.types.JavaTypesManager
+org.talend.core.model.metadata.types.JavaType
+" 
+%> 
+
+<% 
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+INode node = (INode)codeGenArgument.getArgument();
+String cid = node.getUniqueName();
+System.out.println(cid);	
+String sentence = ElementParameterParser.getValue(node, "__MYPAR1__");
+String consoleout = ElementParameterParser.getValue(node, "__MYPAR2__");
+int iterations = Integer.parseInt(ElementParameterParser.getValue(node, "__ITERATION1__"));
+%> 
+
+System.out.println("I am a component and this is the begin section!!!");
+
+System.out.println("<%=iterations%>");
+<%
+if(consoleout.equals("true"))
+{
+%>
+	System.out.println(<%=sentence %>);
+<%
+}
+%>
+
+System.out.println(<%=consoleout %>);
+for (int myvar_<%=cid %>=0;myvar_<%=cid %> < <%=iterations%>;myvar_<%=cid %>++)
+{
+
+
+
+
+
+

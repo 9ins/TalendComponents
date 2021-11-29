@@ -1,0 +1,194 @@
+<%@ jet 
+  imports="
+    org.talend.core.model.process.INode 
+    org.talend.core.model.process.ElementParameterParser 
+    org.talend.core.model.metadata.IMetadataTable 
+    org.talend.core.model.metadata.IMetadataColumn 
+    org.talend.core.model.process.IConnection
+    org.talend.core.model.process.EConnectionType
+    org.talend.designer.codegen.config.CodeGeneratorArgument
+    org.talend.core.model.metadata.types.JavaTypesManager
+    org.talend.core.model.metadata.types.JavaType
+    java.util.List
+    java.util.Map
+  " 
+%>
+<%
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode)codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+	IMetadataTable preMetadata = null;
+	List<String> listCheckedColsName = null;
+%>
+
+<%
+	if((node.getIncomingConnections()!=null)&&(node.getIncomingConnections().size()>0))
+	{
+		preMetadata = node.getIncomingConnections().get(0).getMetadataTable();
+	}
+	
+	String inRowName = node.getIncomingConnections().get(0).getName(); 
+	String outConns = node.getOutgoingConnections().get(0).getName();
+	List<IMetadataColumn> columns = preMetadata.getListColumns();
+	List<Map<String, String>> listTableCols = (List<Map<String, String>>)ElementParameterParser.getObjectValue(node, "__SPECIFY_COLS__");
+	String key = ElementParameterParser.getValue(node, "__KEY__");
+%>
+
+	javax.crypto.SecretKey Secretkey = new javax.crypto.spec.SecretKeySpec(<%=key%>.getBytes(), "AES");
+	String typeToGenerate="";
+	String theValueAsString="";
+
+<%
+	String [] checkedOrUnchecked = new String[listTableCols.size()];
+	for (int i=0; i<listTableCols.size(); i++) 
+	{
+		Map<String, String> lineValue = listTableCols.get(i);
+	   	checkedOrUnchecked[i] = lineValue.get("ENCRYPT_IT"); 
+	}
+
+	for (int j=0; j<listTableCols.size(); j++)
+	{
+		IMetadataColumn column = columns.get(j);
+		JavaType javaType = JavaTypesManager.getJavaTypeFromId(column.getTalendType());
+			
+		if((checkedOrUnchecked[j]).equals("true"))
+		{
+%>	
+	    		javax.crypto.Cipher plain_text_<%=j%> = javax.crypto.Cipher.getInstance("AES");
+			plain_text_<%=j%>.init(javax.crypto.Cipher.ENCRYPT_MODE, Secretkey);
+<%
+			if(javaType == JavaTypesManager.STRING) 
+			{ 
+%>
+				theValueAsString = <%=inRowName%>.<%=column.getLabel()%>; 
+	    			byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%
+			} 
+			else if(javaType == JavaTypesManager.BOOLEAN)
+			{
+%>
+				theValueAsString = new Boolean(<%=inRowName%>.<%=column.getLabel()%>).toString();
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);		
+<%		
+			}
+			else if(javaType == JavaTypesManager.BYTE)
+			{
+%>
+				theValueAsString = Byte.toString(<%=inRowName%>.<%=column.getLabel()%>);
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+			else if(javaType == JavaTypesManager.CHARACTER)
+			{
+%>
+				theValueAsString = Character.toString(<%=inRowName%>.<%=column.getLabel()%>);
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);		
+<%		
+			}
+			else if(javaType == JavaTypesManager.DATE)
+			{
+%>
+				java.text.DateFormat formatter = new java.text.SimpleDateFormat(<%=column.getPattern()%>);
+				String theValueAsString_temp = formatter.format(<%=inRowName%>.<%=column.getLabel()%>);
+				
+				SimpleDateFormat sdf = new SimpleDateFormat(<%=column.getPattern()%>);
+				Date date = sdf.parse(theValueAsString_temp);
+
+				theValueAsString = Long.toString(date.getTime());   //convert date to milliseconds
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+			else if(javaType == JavaTypesManager.DOUBLE)
+			{
+%>
+				theValueAsString = Double.toString(<%=inRowName%>.<%=column.getLabel()%>);
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+			else if(javaType == JavaTypesManager.FLOAT)
+			{
+%>
+				theValueAsString = Float.toString(<%=inRowName%>.<%=column.getLabel()%>);
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+			else if(javaType == JavaTypesManager.BIGDECIMAL)
+			{
+%>
+				theValueAsString = <%=inRowName%>.<%=column.getLabel()%>.toString();
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+			else if(javaType == JavaTypesManager.INTEGER)
+			{
+%>
+				theValueAsString = Integer.toString(<%=inRowName%>.<%=column.getLabel()%>);
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+			else if(javaType == JavaTypesManager.LONG)
+			{
+%>
+				theValueAsString = Long.toString(<%=inRowName%>.<%=column.getLabel()%>);
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+			else if(javaType == JavaTypesManager.OBJECT)
+			{
+%>
+				theValueAsString = <%=inRowName%>.<%=column.getLabel()%>.toString();
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+			else if(javaType == JavaTypesManager.SHORT)
+			{
+%>
+				theValueAsString = Short.toString(<%=inRowName%>.<%=column.getLabel()%>);
+				byte[] utf8_<%=j%> = theValueAsString.getBytes("UTF-8");
+	    			byte[] enc_<%=j%> = plain_text_<%=j%>.doFinal(utf8_<%=j%>); 
+	    			new org.apache.commons.codec.binary.Base64();
+	    			<%=outConns%>.<%=column.getLabel()%> = (String)org.apache.commons.codec.binary.Base64.encodeBase64String(enc_<%=j%>);
+<%		
+			}
+		}
+		else
+		{
+%>
+			<%=outConns%>.<%=column.getLabel()%> = <%=inRowName%>.<%=column.getLabel()%>;		
+<%
+		}
+	}	
+%>

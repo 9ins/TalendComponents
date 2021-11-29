@@ -1,0 +1,112 @@
+<%@ jet 
+imports="
+org.talend.core.model.process.INode
+org.talend.core.model.process.ElementParameterParser
+org.talend.core.model.metadata.IMetadataTable 
+org.talend.core.model.metadata.IMetadataColumn 
+org.talend.core.model.process.IConnection
+org.talend.core.model.process.IConnectionCategory
+org.talend.designer.codegen.config.CodeGeneratorArgument
+org.talend.core.model.metadata.types.JavaTypesManager
+org.talend.core.model.metadata.types.JavaType
+java.util.*
+" 
+%> 
+<% 
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+INode node = (INode)codeGenArgument.getArgument();
+boolean isLog4jEnabled = ("true").equals(ElementParameterParser.getValue(node.getProcess(), "__LOG4J_ACTIVATE__"));
+String cid = node.getUniqueName();
+
+String searchNm = ElementParameterParser.getValue(node, "__SEARCH__").trim();
+String url = ElementParameterParser.getValue(node, "__URL__").trim();
+String lang = ElementParameterParser.getValue(node, "__WIKI_LANG__").trim();
+String searchKeyword = ElementParameterParser.getValue(node, "__SEARCH_KEYWORD__").trim();
+String webPageKeyword = ElementParameterParser.getValue(node, "__WEB_PAGE_KEYWORD__");
+int startUrlRetry = Integer.parseInt(ElementParameterParser.getValue(node, "__START_URL_RETRY__").trim());
+int crawlingDepth = Integer.parseInt(ElementParameterParser.getValue(node, "__CRAWLING_DEPTH__").trim());
+long crawlingDuration = Long.parseLong(ElementParameterParser.getValue(node, "__CRAWLING_DURATION__").trim());
+String crawlingDurationUnit = ElementParameterParser.getValue(node, "__CRAWLING_DURATION_UNIT__").trim();
+
+if(crawlingDurationUnit.equals("SECONDS")) {
+	crawlingDuration = crawlingDuration*1000;
+} else if(crawlingDurationUnit.equals("MINUTES")) {
+	crawlingDuration = crawlingDuration*1000*60;
+} else if(crawlingDurationUnit.equals("HOURS")) {
+	crawlingDuration = crawlingDuration*1000*60*60;
+} else if(crawlingDurationUnit.equals("DAYS")) {
+	crawlingDuration = crawlingDuration*1000*60*60*24;
+} else {
+	crawlingDuration = crawlingDuration;
+}
+
+int threadCoreCount = Integer.parseInt(ElementParameterParser.getValue(node, "__THREAD_CORE_COUNT__").trim());
+int threadMaxCount = Integer.parseInt(ElementParameterParser.getValue(node, "__THREAD_MAX_COUNT__").trim());
+long keepAliveTime = Long.parseLong(ElementParameterParser.getValue(node, "__KEEP_ALIVE_TIME__").trim());
+String keepAliveTimeUnit = ElementParameterParser.getValue(node, "__KEEP_ALIVE_TIME_UNIT__").trim();
+
+if(keepAliveTimeUnit.equals("SECONDS")) {
+	keepAliveTime = keepAliveTime*1000;
+} else if(keepAliveTimeUnit.equals("MINUTES")) {
+	keepAliveTime = keepAliveTime*1000*60;
+} else if(keepAliveTimeUnit.equals("HOURS")) {
+	keepAliveTime = keepAliveTime*1000*60*60;
+} else if(keepAliveTimeUnit.equals("DAYS")) {
+	keepAliveTime = keepAliveTime*1000*60*60*24;
+} else {
+	keepAliveTime = keepAliveTime;
+}
+
+boolean isTimeout = "true".equals(ElementParameterParser.getValue(node, "__TIMEOUT_SETTING__"));
+int connectTimeout = Integer.parseInt(ElementParameterParser.getValue(node, "__CONNECT_TIMEOUT__").trim())*1000;
+int readTimeout = Integer.parseInt(ElementParameterParser.getValue(node, "__READ_TIMEOUT__").trim())*1000;
+
+boolean isSave = "true".equals(ElementParameterParser.getValue(node, "__USE_SAVE__").trim());
+String savePath = ElementParameterParser.getValue(node, "__SAVE_PATH__").trim();
+
+boolean isRobotTxt = "true".equals(ElementParameterParser.getValue(node, "__USE_ROBOT__").trim());
+boolean isProxy = "true".equals(ElementParameterParser.getValue(node, "__PROXY_YN__").trim());
+String proxyIP = ElementParameterParser.getValue(node, "__PROXY_IP__").trim();
+String proxyPort = ElementParameterParser.getValue(node, "__PROXY_PORT__").trim();
+boolean isProxyAuth = "true".equals(ElementParameterParser.getValue(node, "__PROXY_AUTH_YN__").trim());
+String proxyUser = ElementParameterParser.getValue(node, "__PROXY_USER__").trim();
+String proxyPasswd = ElementParameterParser.getValue(node, "__PROXY_PASSWD__").trim();
+
+//검색엔진이고 키워드가 없는게 아니면
+if(!searchNm.equals("")) {
+	String words = "";
+	String[] strs = searchKeyword.split("[ ]");
+	for(String word : strs) {
+		words += word+"+";
+	}
+	words = words.substring(0, words.lastIndexOf("+"));
+	if(searchNm.indexOf("wikipedia") != -1) {
+		searchNm = searchNm.replace("www", lang);
+	}
+	url = "\""+searchNm+"\"+"+words;
+} else {
+%>
+	String regex_<%=cid%> = "^(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]";
+	java.util.regex.Pattern patt = java.util.regex.Pattern.compile(regex_<%=cid%>);
+	boolean isMatch_<%=cid%> = patt.matcher(<%=url%>).matches();
+	if(!isMatch_<%=cid%>) {
+		throw new RuntimeException("Illegal URL format. Please check URL String.");
+	}
+<%
+}
+%>
+System.out.println("########## Begin Crawling ##########");
+
+com.chaostocosmos.designer.crawler.WebCrawler crawler_<%=cid%> = new com.chaostocosmos.designer.crawler.WebCrawler(<%=url%>, <%=startUrlRetry%>, <%=crawlingDepth%>, <%=crawlingDuration%>,
+																												<%=webPageKeyword%>, <%=threadCoreCount%>, <%=threadMaxCount%>, <%=keepAliveTime%>,
+																												<%=isSave%>?<%=savePath%>:null, <%=isRobotTxt%>, <%=connectTimeout%>, <%=readTimeout%>, null);
+if(<%=isProxy%>) {
+	crawler_<%=cid%>.setProxy(<%=proxyIP%>, <%=proxyPort%>, <%=proxyUser%>, <%=proxyPasswd%>);
+}
+
+int nb_line_<%=cid%> = 0;
+long start_yn_millis_<%=cid%> = 0;
+
+while(crawler_<%=cid%>.isActiveOrDie() || crawler_<%=cid%>.getEventQueue().size() > 0) {
+	if(crawler_<%=cid%>.getEventQueue().size() > 0) {
+	

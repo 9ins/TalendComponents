@@ -1,0 +1,765 @@
+<%@ jet
+	imports="
+	java.util.Arrays
+	java.util.ArrayList
+	java.util.HashMap
+	java.util.List
+	java.util.Map
+	
+	org.talend.core.model.metadata.IMetadataColumn
+	org.talend.core.model.metadata.IMetadataTable
+	org.talend.core.model.metadata.types.JavaType
+	org.talend.core.model.metadata.types.JavaTypesManager
+	org.talend.core.model.process.ElementParameterParser
+	org.talend.core.model.process.IConnection
+	org.talend.core.model.process.IConnectionCategory
+	org.talend.core.model.process.INode
+	org.talend.designer.codegen.config.CodeGeneratorArgument
+	org.talend.core.model.utils.TalendTextUtils
+	"
+%>
+	<%
+	class AssignUtil{
+    	public void gen(IConnection justConn,IMetadataColumn justColumn,String value,String paramName){
+    		
+    		String typeToGenerate = JavaTypesManager.getTypeToGenerate(justColumn.getTalendType(), justColumn.isNullable());
+    		JavaType javaType = JavaTypesManager.getJavaTypeFromId(justColumn.getTalendType());
+			String patternValue = justColumn.getPattern() == null || justColumn.getPattern().trim().length() == 0 ? null : justColumn.getPattern();
+			
+			if(javaType == JavaTypesManager.DATE) {
+			%>
+			//
+				<%=justConn.getName() %>.<%=justColumn.getLabel() %> = ParserUtils.parseTo_Date(<%=value%>.getString(<%=paramName%>),<%=patternValue%>);
+			<%
+			} else if(javaType == JavaTypesManager.OBJECT) {
+			%>
+				<%=justConn.getName() %>.<%=justColumn.getLabel() %> = <%=value%>.getValue(<%=paramName%>);
+			<%
+			} else{
+			%>
+				<%=justConn.getName() %>.<%=justColumn.getLabel() %> = ParserUtils.parseTo_<%=typeToGenerate%>(<%=value%>.getString(<%=paramName%>));
+			<%
+			}
+    	}
+    }
+	%>
+	<%
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode)codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+	%>
+
+	<%	
+	IConnection firstDataConn = null;
+	List<IMetadataColumn> firstColumnList = null;
+
+	//1. get first DATA Link
+	List< ? extends IConnection> conns = node.getOutgoingSortedConnections();	
+	if(conns != null && conns.size() > 0){
+		for(IConnection conn : conns){
+			if (conn.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
+				firstDataConn = conn;
+				break;
+			}
+		}
+	}
+
+	//2. get first columnList (with real columns data) 	
+	List<IMetadataTable> metadatas = node.getMetadataList();
+	IMetadataTable metadata = null;
+	if ( metadatas != null && metadatas.size() > 0 ) {
+		metadata = metadatas.get(0);
+		if(metadata != null){
+			firstColumnList = metadata.getListColumns(); 
+			if ( firstColumnList == null || firstColumnList.size() == 0 ) {
+				firstColumnList = null;
+			}
+		}
+	}
+	
+	//3. check the config Link and Schema
+	if(firstDataConn == null || firstColumnList == null)
+	{
+		return "";
+	}
+	%>
+
+	<%         
+	List<Map<String, String>> schemas = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node, "__SCHEMAS__");
+	
+	List<Map<String, String>> tempSchemaBufferBaseOnLink = new ArrayList<Map<String, String>>();
+	//filter some values for schemas, because it should be base on Connection, because some Connection maybe deactivate.
+	if(conns != null && conns.size() > 0){
+		for(IConnection conn : conns){
+			if (conn.getLineStyle().hasConnectionCategory(IConnectionCategory.MAIN)) {
+	            for(Map<String, String> schemaMap : schemas) {
+	            	String schemaName = schemaMap.get("SCHEMA");
+	    			if(schemaName.equals(conn.getName())){
+						tempSchemaBufferBaseOnLink.add(schemaMap);
+	    			}
+	    		}	
+			}
+		}
+	}
+	schemas =  tempSchemaBufferBaseOnLink;
+	%>
+
+	<%
+	boolean startIterate = false;
+	String firstDataConnName = firstDataConn.getName();
+	
+	String client = ElementParameterParser.getValue(node, "__CLIENT__");
+	String userid = ElementParameterParser.getValue(node, "__USERID__");
+	String password = ElementParameterParser.getValue(node, "__PASSWORD__");
+	String language = ElementParameterParser.getValue(node, "__LANGUAGE__");
+	String hostname = ElementParameterParser.getValue(node, "__HOSTNAME__");
+	String systemnumber = ElementParameterParser.getValue(node, "__SYSTEMNUMBER__");
+	
+	String serverType = ElementParameterParser.getValue(node,"__SERVERTYPE__");
+	String systemId = ElementParameterParser.getValue(node,"__SYSTEMID__");
+	String groupName = ElementParameterParser.getValue(node,"__GROUPNAME__");
+	
+	String functionName = ElementParameterParser.getValue(node, "__SAP_FUNCTION__");
+	
+	String iterate_out_type = ElementParameterParser.getValue(node, "__SAP_ITERATE_OUT_TYPE__");
+	String iterate_out_tablename = ElementParameterParser.getValue(node, "__SAP_ITERATE_OUT_TABLENAME__");
+	String [] iterate_out_multi = iterate_out_tablename.split(",");
+	for(int k = 0; k < iterate_out_multi.length; k++){
+		if(iterate_out_multi[k] != null){
+			iterate_out_multi[k] = iterate_out_multi[k].trim();
+		}
+	}
+	List<String> iterate_out_multi_list = Arrays.asList(iterate_out_multi);
+	
+	boolean useExistingConn = ("true").equals(ElementParameterParser.getValue(node,"__USE_EXISTING_CONNECTION__"));
+	String connection = ElementParameterParser.getValue(node,"__CONNECTION__");
+	boolean useFtpHttp = ("true").equals(ElementParameterParser.getValue(node,"__FTP_HTTP_FUNCTION__"));
+	String version = "sapjco.jar";
+    if(useExistingConn){
+	    List<? extends INode> nodes = node.getProcess().getGeneratingNodes();
+	    for(INode targetNode : nodes){
+	    	if (targetNode.getUniqueName().equals(connection)) {
+		      version = ElementParameterParser.getValue(targetNode, "__DB_VERSION__");
+		    }
+	    }
+	}else{
+		version = ElementParameterParser.getValue(node, "__DB_VERSION__");
+	}
+	
+    String passwordFieldName = "__PASSWORD__";
+    
+    boolean activeSNC = ("true").equals(ElementParameterParser.getValue(node,"__SNC_ACTIVE__"));
+    String partnerSNCName = ElementParameterParser.getValue(node,"__SNC_PARTNER_NAME__");
+    String mySNCName = ElementParameterParser.getValue(node,"__SNC_MY_NAME__");
+    String sncLevel = ElementParameterParser.getValue(node,"__SNC_LEVEL__");
+    String sncLibPath = ElementParameterParser.getValue(node,"__SNC_LIB_PATH__");
+    boolean hasSNCLibPath = sncLibPath != null && !"".equals(sncLibPath);
+    boolean hasMySNCName = mySNCName != null && !"".equals(mySNCName);
+    
+    List<Map<String, String>> sapProps = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node, "__SAP_PROPERTIES__");    
+	%>
+    
+	<%if("sapjco.jar".equals(version)){%>
+		com.sap.mw.jco.JCO.Client client_<%=cid %> = null;
+		<%if(useExistingConn){%>	    
+			client_<%=cid %> = (com.sap.mw.jco.JCO.Client)globalMap.get("conn_<%=connection %>");	
+		<%}else{%>
+		<%@ include file="@{org.talend.designer.components.localprovider}/components/templates/password.javajet"%>
+		<%//big try%>
+		java.util.Properties properties_<%=cid%> = new java.util.Properties();
+		try{
+			<%if("ApplicationServer".equals(serverType)){%>
+				//Create a client connection to a dedicated R/3 system
+				properties_<%=cid%>.put("jco.client.type", "3");
+        		if (<%=client %> != null) properties_<%=cid%>.put("jco.client.client", <%=client %>);
+        		if (<%=userid %> != null) properties_<%=cid%>.put("jco.client.user", <%=userid %>);
+        		if (decryptedPassword_<%=cid%> != null) properties_<%=cid%>.put("jco.client.passwd", decryptedPassword_<%=cid%>);
+        		if (<%=language %> != null) properties_<%=cid%>.put("jco.client.lang", <%=language %>);
+        		if (<%=hostname %> != null) properties_<%=cid%>.put("jco.client.ashost", <%=hostname %>);
+        		if (<%=systemnumber %> != null) properties_<%=cid%>.put("jco.client.sysnr", <%=systemnumber %>);	
+			<%}else{%>
+				//Create a client connection to Message Server 
+				properties_<%=cid%>.put("jco.client.type", "3");
+                if (<%=client %> != null) properties_<%=cid%>.put("jco.client.client", <%=client %>);
+        		if (<%=userid %> != null) properties_<%=cid%>.put("jco.client.user", <%=userid %>);
+        		if (decryptedPassword_<%=cid%> != null) properties_<%=cid%>.put("jco.client.passwd", decryptedPassword_<%=cid%>);
+        		if (<%=language %> != null) properties_<%=cid%>.put("jco.client.lang", <%=language %>);
+        		if (<%=hostname %> != null) properties_<%=cid%>.put("jco.client.mshost", <%=hostname %>);
+        		if (<%=systemId %> != null) properties_<%=cid%>.put("jco.client.r3name", <%=systemId %>);
+        		if (<%=groupName%> != null) properties_<%=cid%>.put("jco.client.group", <%=groupName%>);
+			<%}%>
+			<%
+        	if(activeSNC){
+        	%>
+        		properties_<%=cid%>.setProperty("jco.client.snc_mode", "1");
+        		properties_<%=cid%>.setProperty("jco.client.snc_partnername", <%=partnerSNCName%>);
+        		properties_<%=cid%>.setProperty("jco.client.snc_qop", String.valueOf(<%=sncLevel%>));
+        		<%if(hasMySNCName){%>
+            		if(<%=mySNCName%> != null){
+            			properties_<%=cid%>.setProperty("jco.client.snc_myname", <%=mySNCName%>);
+            		}
+        		<%}%>
+        		<%if(hasSNCLibPath){%>
+            		if(<%=sncLibPath%> != null){
+            			properties_<%=cid%>.setProperty("jco.client.snc_lib", <%=sncLibPath%>);
+            		}
+        		<%}%>
+        	<%
+        	}
+        	%>
+        	<%
+            if(sapProps!=null) {
+        		for(Map<String, String> item : sapProps){
+        		%>	
+        		properties_<%=cid%>.put(<%=item.get("PROPERTY") %> ,<%=item.get("VALUE") %>);
+        		<% 
+        		}
+            }
+        	%>
+        	client_<%=cid %> = com.sap.mw.jco.JCO.createClient(properties_<%=cid%>);
+			// Open the connection
+			client_<%=cid %>.connect();
+			<%if(useFtpHttp){%>
+			com.sap.mw.jco.JCO.setMiddlewareProperty("jco.middleware.allow_start_of_programs", "ftp;sapftp;sapftpa;sapkprotp;http;saphttp;saphttpa");
+			client_<%=cid %>.setSapGui(2);
+			<%}%>
+		<%}%>      
+	    com.sap.mw.jco.IRepository repository_<%=cid %> = com.sap.mw.jco.JCO.createRepository("REPOSITORY", client_<%=cid %>);
+	
+	    com.sap.mw.jco.IFunctionTemplate functionTemplate_<%=cid %> = repository_<%=cid %>.getFunctionTemplate(<%=functionName %>);
+	    
+		if(functionTemplate_<%=cid %> == null){
+			com.sap.mw.jco.JCO.releaseClient(client_<%=cid %>);
+			throw new RuntimeException("The RFC can't support the function: " + <%=functionName %> + ".");
+		}        
+	
+	    com.sap.mw.jco.JCO.Function function_<%=cid %> = functionTemplate_<%=cid %>.getFunction();
+	
+	    com.sap.mw.jco.JCO.ParameterList importParameterList_<%=cid %> = function_<%=cid %>.getImportParameterList();
+	    com.sap.mw.jco.JCO.ParameterList exportParameterList_<%=cid %> = function_<%=cid %>.getExportParameterList();
+	    com.sap.mw.jco.JCO.ParameterList tableParameterList_<%=cid %> = function_<%=cid %>.getTableParameterList();
+	    
+	    com.sap.mw.jco.JCO.Structure input_structure_<%=cid %>=null;
+	    com.sap.mw.jco.JCO.Table input_table_<%=cid %>=null; 
+	    com.sap.mw.jco.JCO.Table  table_input_<%=cid %>=null; 
+	<%}else if("sapjco3.jar".equals(version)){%>
+		com.sap.conn.jco.JCoDestination dest_<%=cid%> = null;
+		<%if(useExistingConn){%>	
+			dest_<%=cid%> = (com.sap.conn.jco.JCoDestination)globalMap.get("conn_<%=connection %>");
+<%	
+			INode connectionNode = null; 
+			for (INode processNode : node.getProcess().getGeneratingNodes()) { 
+				if(connection.equals(processNode.getUniqueName())) { 
+					connectionNode = processNode; 
+					break; 
+				} 
+			} 
+			boolean specify_alias = "true".equals(ElementParameterParser.getValue(connectionNode, "__SPECIFY_DATASOURCE_ALIAS__"));
+			if(specify_alias){
+				String alias = ElementParameterParser.getValue(connectionNode, "__SAP_DATASOURCE_ALIAS__");
+				if(null != alias && !("".equals(alias))){
+%>
+					if(dest_<%=cid%> == null){
+						dest_<%=cid%> = com.sap.conn.jco.JCoDestinationManager.getDestination(<%=alias%>);
+					}
+<%
+				}
+			}
+%>
+		<%}else{%>
+		<%@ include file="@{org.talend.designer.components.localprovider}/components/templates/password.javajet"%>
+		<%//big try%>
+		try{
+<%
+			boolean specify_alias = "true".equals(ElementParameterParser.getValue(node, "__SPECIFY_DATASOURCE_ALIAS__"));
+	 		if(specify_alias){
+				String alias = ElementParameterParser.getValue(node, "__SAP_DATASOURCE_ALIAS__");
+				if(null != alias && !("".equals(alias))){
+%>
+					dest_<%=cid%> = com.sap.conn.jco.JCoDestinationManager.getDestination(<%=alias%>);
+<%
+				}
+%>
+	            if (null == dest_<%=cid%>) {
+<%
+			}
+%>
+					org.talend.sap.TSAPDestinationData destinationData_<%=cid%> = null;
+					
+					java.util.Properties properties_<%=cid%> = new java.util.Properties();
+        			<%
+                	if(activeSNC){
+                	%>
+                		properties_<%=cid%>.setProperty("jco.client.snc_mode", "1");
+                		properties_<%=cid%>.setProperty("jco.client.snc_partnername", <%=partnerSNCName%>);
+                		properties_<%=cid%>.setProperty("jco.client.snc_qop", String.valueOf(<%=sncLevel%>));
+                		<%if(hasMySNCName){%>
+                    		if(<%=mySNCName%> != null){
+                    			properties_<%=cid%>.setProperty("jco.client.snc_myname", <%=mySNCName%>);
+                    		}
+                		<%}%>
+                		<%if(hasSNCLibPath){%>
+                    		if(<%=sncLibPath%> != null){
+                    			properties_<%=cid%>.setProperty("jco.client.snc_lib", <%=sncLibPath%>);
+                    		}
+                		<%}%>
+                	<%
+                	}
+                	%>
+					<%
+                    if(sapProps!=null) {
+                		for(Map<String, String> item : sapProps){
+                		%>	
+                		properties_<%=cid%>.put(<%=item.get("PROPERTY") %> ,<%=item.get("VALUE") %>);
+                		<% 
+                		}
+                    }
+                	%>
+        			<%if("ApplicationServer".equals(serverType)){%>
+        				destinationData_<%=cid%> = new org.talend.sap.TSAPApplicationServerDestData.Builder(<%=client%>,
+        																					<%=userid%>,
+        																					decryptedPassword_<%=cid%>,
+        																					<%=language%>,
+        																					<%=hostname%>,
+        																					<%=systemnumber%>)
+            																				<%if(useFtpHttp){%>
+            																					.setSAPGUI("2")
+            																				<%}%>
+        																					.setCustomProp(properties_<%=cid%>)
+        																					.build();
+        			<%}else{%>			
+        				destinationData_<%=cid%> = new org.talend.sap.TSAPMessageServerDestData.Builder(<%=client%>,
+        																					<%=userid%>,
+        																					decryptedPassword_<%=cid%>,
+        																					<%=language%>,
+        																					<%=hostname%>,
+        																					<%=systemId %>,
+        						            				 								<%=groupName%>)
+        						            				 								<%if(useFtpHttp){%>
+            																					.setSAPGUI("2")
+            																				<%}%>
+        																					.setCustomProp(properties_<%=cid%>)
+            																				.build();
+        			<%}%>
+        		    <%if(useFtpHttp){%>
+        				com.sap.conn.jco.JCo.setMiddlewareProperty("jco.middleware.allow_start_of_programs", "ftp;sapftp;sapftpa;sapkprotp;http;saphttp;saphttpa");
+        			<%}%>
+        			dest_<%=cid%> = org.talend.sap.TSAPDestinationFactory.getInstance().getDestination(destinationData_<%=cid%>);
+        			// Begins the stateful call sequence for calls to the specified destination.
+		    		com.sap.conn.jco.JCoContext.begin(dest_<%=cid%>);
+<%
+			if(specify_alias){
+%>
+				}
+<%
+			}
+%>
+		<%}%> 
+		com.sap.conn.jco.JCoRepository repository_<%=cid %> = dest_<%=cid%>.getRepository();
+		
+		com.sap.conn.jco.JCoFunctionTemplate functionTemplate_<%=cid %> = repository_<%=cid %>.getFunctionTemplate(<%=functionName %>);
+		if(functionTemplate_<%=cid %> == null){
+			com.sap.conn.jco.JCoContext.end(dest_<%=cid%>);
+			throw new RuntimeException("The RFC can't support the function: " + <%=functionName %> + ".");
+		}  
+		com.sap.conn.jco.JCoFunction function_<%=cid %> = functionTemplate_<%=cid %>.getFunction();
+		
+		com.sap.conn.jco.JCoParameterList importParameterList_<%=cid %> = function_<%=cid %>.getImportParameterList();
+	    com.sap.conn.jco.JCoParameterList exportParameterList_<%=cid %> = function_<%=cid %>.getExportParameterList();
+	    com.sap.conn.jco.JCoParameterList tableParameterList_<%=cid %> = function_<%=cid %>.getTableParameterList();
+	    
+	    com.sap.conn.jco.JCoStructure input_structure_<%=cid %>=null;
+	    com.sap.conn.jco.JCoTable input_table_<%=cid %>=null; 
+	    com.sap.conn.jco.JCoTable table_input_<%=cid %>=null; 
+	<%}%>
+	
+    Object isListObject_<%=cid%>=null;
+        
+	<%
+	Map<String,String> input_single_map = new HashMap<String,String>();
+	Map<String,Map<String,String>> input_structure_map = new HashMap<String,Map<String,String>>();
+	Map<String,Map<String,String>> input_table_map = new HashMap<String,Map<String,String>>();
+	Map<String,Map<String,String>> table_input_map = new HashMap<String,Map<String,String>>();
+	Map<String,String> table_map = null;
+
+	List<Map<String, String>> sapMapping_input = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node, "__MAPPING_INPUT__");            
+    
+	for(Map<String, String> configRow : sapMapping_input){
+	
+		String parameterType = configRow.get("SAP_PARAMETER_TYPE");
+		if("table_input".equals(parameterType)) { 
+			if(table_input_map.get(configRow.get("SAP_TABLE_NAME"))==null){
+				table_map = new HashMap<String,String>();
+				table_map.put(configRow.get("SAP_PARAMETER_NAME"),configRow.get("SAP_PARAMETER_VALUE"));
+				table_input_map.put(configRow.get("SAP_TABLE_NAME"),table_map);
+			}else{
+				table_map = table_input_map.get(configRow.get("SAP_TABLE_NAME"));
+				table_map.put(configRow.get("SAP_PARAMETER_NAME"),configRow.get("SAP_PARAMETER_VALUE"));
+			}
+		}else if("input_table".equals(parameterType)){
+			if(input_table_map.get(configRow.get("SAP_TABLE_NAME"))==null){
+				table_map = new HashMap<String,String>();
+				table_map.put(configRow.get("SAP_PARAMETER_NAME"),configRow.get("SAP_PARAMETER_VALUE"));
+				input_table_map.put(configRow.get("SAP_TABLE_NAME"),table_map);
+			}else{
+				table_map = input_table_map.get(configRow.get("SAP_TABLE_NAME"));
+				table_map.put(configRow.get("SAP_PARAMETER_NAME"),configRow.get("SAP_PARAMETER_VALUE"));
+			}
+		}else if("input_structure".equals(parameterType)){
+			if(input_structure_map.get(configRow.get("SAP_TABLE_NAME"))==null){
+				table_map = new HashMap<String,String>();
+				table_map.put(configRow.get("SAP_PARAMETER_NAME"),configRow.get("SAP_PARAMETER_VALUE"));
+				input_structure_map.put(configRow.get("SAP_TABLE_NAME"),table_map);
+			}else{
+				table_map = input_structure_map.get(configRow.get("SAP_TABLE_NAME"));
+				table_map.put(configRow.get("SAP_PARAMETER_NAME"),configRow.get("SAP_PARAMETER_VALUE"));
+			}
+		}else{
+			input_single_map.put(configRow.get("SAP_PARAMETER_NAME"),configRow.get("SAP_PARAMETER_VALUE"));	
+		}
+		
+		if(false){
+		System.out.println(configRow.get("SCHEMA_COLUMN") + " " + configRow.get("SAP_PARAMETER_TYPE") + " " + configRow.get("SAP_TABLE_NAME") + " " + configRow.get("SAP_PARAMETER_NAME") + " " + configRow.get("SAP_PARAMETER_VALUE")+ " " + configRow.get("SAP_TABLE_ROWNUMBER"));
+		}
+	}
+	//assign input value	
+	if(!input_single_map.isEmpty()){
+		for(Object pName:input_single_map.keySet()){
+		%>
+			<%if("sapjco.jar".equals(version)){%>
+				importParameterList_<%=cid %>.setValue(<%=input_single_map.get(pName)%>,<%=pName.toString()%>); // "input_single"
+			<%}else if("sapjco3.jar".equals(version)){%>
+				importParameterList_<%=cid %>.setValue(<%=pName.toString()%>,<%=input_single_map.get(pName)%>); // "input_single"
+			<%}%>		
+		<%
+		}
+	}
+	if(!input_structure_map.isEmpty()){
+		for(Object tableName:input_structure_map.keySet()){
+		%>
+			input_structure_<%=cid %> = importParameterList_<%=cid %>.getStructure(<%=tableName.toString()%>);					
+			<%
+			table_map = (HashMap<String,String>)input_structure_map.get(tableName);
+			for(Object ColName: table_map.keySet()){
+			%>
+				<%if("sapjco.jar".equals(version)){%>
+					input_structure_<%=cid %>.setValue(<%=table_map.get(ColName)%>,<%=ColName.toString()%>);	// "input_structure"
+				<%}else if("sapjco3.jar".equals(version)){%>
+					input_structure_<%=cid %>.setValue(<%=ColName.toString()%>,<%=table_map.get(ColName)%>);	// "input_structure"
+				<%}%>						
+			<%
+			}
+		}
+	}
+	if(!input_table_map.isEmpty()){
+		String tName = "";
+		String cName = "";
+		for(Object tableName:input_table_map.keySet()){
+			tName = TalendTextUtils.removeQuotes(tableName.toString());
+			table_map = (HashMap<String,String>)input_table_map.get(tableName);
+			for(Object colName: table_map.keySet()){
+				cName = TalendTextUtils.removeQuotes(colName.toString());
+				String multiValues = table_map.get(colName);
+				%>
+				java.util.List list_<%=tName%>_<%=cName%>_<%=cid%> = new java.util.ArrayList();				
+				<%
+				if(multiValues != null && multiValues.indexOf(",") != -1){
+					String[] values = multiValues.split(",");
+					for(int k = 0; k < values.length; k++){
+					%>
+						list_<%=tName%>_<%=cName%>_<%=cid%>.add(<%=values[k]%>);
+					<%
+					}
+				}else{
+				%>
+					isListObject_<%=cid%> = <%=table_map.get(colName)%>;
+					if(isListObject_<%=cid%> instanceof java.util.List){
+						list_<%=tName%>_<%=cName%>_<%=cid%>.addAll((java.util.List)isListObject_<%=cid%>);
+					}else{
+						list_<%=tName%>_<%=cName%>_<%=cid%>.add(<%=table_map.get(colName)%>);
+					}
+				<%						
+				}
+			}
+			%>
+			int rowSize_<%=tName%>_<%=cid%> = 0;
+			<% 
+			boolean isFirstRow = true;
+			for(Object colName: table_map.keySet()){
+				cName = TalendTextUtils.removeQuotes(colName.toString());
+				if(isFirstRow){ 
+				%>
+					rowSize_<%=tName%>_<%=cid%> = list_<%=tName%>_<%=cName%>_<%=cid%>.size();														
+				<%
+					isFirstRow = false;
+				}else{
+				%>
+					if(rowSize_<%=tName%>_<%=cid%>!=list_<%=tName%>_<%=cName%>_<%=cid%>.size()){
+						throw new RuntimeException("The row count of column: <%=cName%> in table: <%=tName%> not equals others, please make sure the row count of every columns equal.");
+					}					
+				<%
+				}
+			}
+			%>
+			input_table_<%=cid %> = importParameterList_<%=cid %>.getTable(<%=tableName%>);
+			input_table_<%=cid %>.appendRows(rowSize_<%=tName%>_<%=cid%>);
+			input_table_<%=cid %>.firstRow();
+			for(int rowNum_<%=tName%>=0; rowNum_<%=tName%> < rowSize_<%=tName%>_<%=cid%>; rowNum_<%=tName%>++){			
+				<%
+				for(Object colName: table_map.keySet()){
+					cName = TalendTextUtils.removeQuotes(colName.toString());
+					%>
+					<%if("sapjco.jar".equals(version)){%>
+						input_table_<%=cid %>.setValue(list_<%=tName%>_<%=cName%>_<%=cid%>.get(rowNum_<%=tName%>),<%=colName.toString()%>);// "table_input"
+					<%}else if("sapjco3.jar".equals(version)){%>
+						input_table_<%=cid %>.setValue(<%=colName.toString()%>,list_<%=tName%>_<%=cName%>_<%=cid%>.get(rowNum_<%=tName%>));// "table_input"
+					<%}%>
+				<%
+				}
+				%>
+				input_table_<%=cid %>.nextRow();
+			}	
+		<%
+		}
+	}
+	if(!table_input_map.isEmpty()){
+		String tName = "";
+		String cName = "";
+		for(Object tableName:table_input_map.keySet()){
+			tName = TalendTextUtils.removeQuotes(tableName.toString());
+			table_map = (HashMap<String,String>)table_input_map.get(tableName);
+			for(Object colName: table_map.keySet()){
+				cName = TalendTextUtils.removeQuotes(colName.toString());
+				String multiValues = table_map.get(colName);
+				%>
+				java.util.List list_<%=tName%>_<%=cName%>_<%=cid%> = new java.util.ArrayList();				
+				<%
+				if(multiValues != null && multiValues.indexOf(",") != -1){
+    				String[] values = multiValues.split(",");
+    				for(int k = 0; k < values.length; k++){
+					%>
+						list_<%=tName%>_<%=cName%>_<%=cid%>.add(<%=values[k]%>);
+					<%
+					}
+				}else{
+				%>
+					isListObject_<%=cid%> = <%=table_map.get(colName)%>;
+					if(isListObject_<%=cid%> instanceof java.util.List){
+						list_<%=tName%>_<%=cName%>_<%=cid%>.addAll((java.util.List)isListObject_<%=cid%>);
+					}else{
+						list_<%=tName%>_<%=cName%>_<%=cid%>.add(<%=table_map.get(colName)%>);
+					}
+				<%						
+				}
+			}
+			%>
+			int rowSize_<%=tName%>_<%=cid%> = 0;
+			<%
+			boolean isFirstRow = true;
+			for(Object colName: table_map.keySet()){
+				cName = TalendTextUtils.removeQuotes(colName.toString());
+				if(isFirstRow){
+				%>
+					rowSize_<%=tName%>_<%=cid%> = list_<%=tName%>_<%=cName%>_<%=cid%>.size();														
+				<%
+					isFirstRow = false;
+				}else{
+				%>
+					if(rowSize_<%=tName%>_<%=cid%>!=list_<%=tName%>_<%=cName%>_<%=cid%>.size()){
+						throw new RuntimeException("The row count of column: <%=cName%> in table: <%=tName%> not equals others, please make sure the row count of every columns equal.");
+					}					
+				<%
+				}
+			}
+			%>
+			table_input_<%=cid %> = tableParameterList_<%=cid%>.getTable(<%=tableName%>);
+			table_input_<%=cid %>.appendRows(rowSize_<%=tName%>_<%=cid%>);
+			table_input_<%=cid %>.firstRow();
+			for(int rowNum_<%=tName%>=0;rowNum_<%=tName%><rowSize_<%=tName%>_<%=cid%>;rowNum_<%=tName%>++){			
+				<%
+				for(Object colName: table_map.keySet()){
+					cName = TalendTextUtils.removeQuotes(colName.toString());
+					%>
+					<%if("sapjco.jar".equals(version)){%>
+						table_input_<%=cid %>.setValue(list_<%=tName%>_<%=cName%>_<%=cid%>.get(rowNum_<%=tName%>),<%=colName.toString()%>);// "input_table"
+					<%}else if("sapjco3.jar".equals(version)){%>
+						table_input_<%=cid %>.setValue(<%=colName.toString()%>,list_<%=tName%>_<%=cName%>_<%=cid%>.get(rowNum_<%=tName%>));// "input_table"
+					<%}%>
+				<%
+				}
+				%>
+				table_input_<%=cid %>.nextRow();
+			}	
+		<%
+		}
+	}	
+	%>        
+	<%if("sapjco.jar".equals(version)){%>
+		try{
+    		client_<%=cid %>.execute(function_<%=cid %>);
+	    }catch (java.lang.Exception e_<%=cid%>) {
+			com.sap.mw.jco.JCO.releaseClient(client_<%=cid %>);
+		    throw new RuntimeException(e_<%=cid%>.getMessage());
+		}	
+	<%}else if("sapjco3.jar".equals(version)){%>
+		try{
+			function_<%=cid %>.execute(dest_<%=cid%>);
+		}catch (java.lang.Exception e_<%=cid%>) {
+			com.sap.conn.jco.JCoContext.end(dest_<%=cid%>);
+		    throw new RuntimeException(e_<%=cid%>.getMessage());
+		}
+    <%}%>
+	<%
+	for(Map<String, String> schemaMap : schemas) {
+		String schemaName = schemaMap.get("SCHEMA");
+		String paramType = schemaMap.get("SAP_ITERATE_OUT_TYPE");	
+		String tableName = schemaMap.get("SAP_TABLE_NAME");	
+		%>
+		boolean go_<%=schemaName %> = true;
+		
+		<%if(paramType.equals("output_table")){%>
+			<%if("sapjco.jar".equals(version)){%>
+				com.sap.mw.jco.JCO.Table table_<%=schemaName %>_<%=cid %> = exportParameterList_<%=cid %>.getTable(<%=tableName %>);
+			<%}else if("sapjco3.jar".equals(version)){%>
+				com.sap.conn.jco.JCoTable table_<%=schemaName %>_<%=cid %> = exportParameterList_<%=cid %>.getTable(<%=tableName %>);
+			<%}%>
+			go_<%=schemaName %> = !table_<%=schemaName %>_<%=cid %>.isEmpty();
+		<%}%>
+		
+		<%if(paramType.equals("table_output")){%>
+			<%if("sapjco.jar".equals(version)){%>
+				com.sap.mw.jco.JCO.Table table_<%=schemaName %>_<%=cid %> = tableParameterList_<%=cid %>.getTable(<%=tableName %>);
+			<%}else if("sapjco3.jar".equals(version)){%>
+				com.sap.conn.jco.JCoTable table_<%=schemaName %>_<%=cid %> = tableParameterList_<%=cid %>.getTable(<%=tableName %>);
+			<%}%>
+			go_<%=schemaName %> = !table_<%=schemaName %>_<%=cid %>.isEmpty();
+		<%}%>		
+	<%	
+	}
+	%>
+
+	while(
+	<%boolean firstWhilePart = true;
+	for(Map<String, String> schemaMap : schemas) {
+		String schemaName = schemaMap.get("SCHEMA");
+		%>
+		<%=!firstWhilePart?"||":"" %>go_<%=schemaName %>
+		<%	
+		firstWhilePart = false;
+	}%>){
+			<%
+			for(Map<String, String> schemaMap : schemas) {
+				String schemaName = schemaMap.get("SCHEMA");
+			%>
+				<%=schemaName %> = null;
+			<%	
+			}
+			%>
+
+			<%
+			for(Map<String, String> schemaMap : schemas) {
+				String schemaName = schemaMap.get("SCHEMA");
+				String paramType = schemaMap.get("SAP_ITERATE_OUT_TYPE");
+				String tableName = schemaMap.get("SAP_TABLE_NAME");	
+				String mapping = schemaMap.get("MAPPING");	
+				String[] paramNames = null;
+				if(mapping != null){
+					paramNames = mapping.split(",");
+				}	
+				IConnection justConn = null; //------->get the right output connection--->to get the columns info
+				if(conns != null && conns.size() > 0){
+					for(IConnection conn : conns){
+						if (conn.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
+							if(schemaName.equals(conn.getName())){
+								justConn = conn;
+								break;
+							}
+						}
+					}
+				}
+				%>
+
+				<%
+				//do check1, make sure the field "component setting viewer->View->Connection format" is "row"
+				if(justConn == null){
+				%>
+			    	if (true) {
+			    		throw new java.lang.Exception("The connection for schema <%=schemaName %> is with problem, they must be the same name.");
+    				}
+					<%
+					return stringBuffer.toString();
+				}
+
+				IMetadataTable justMetadata = justConn.getMetadataTable();
+				List<IMetadataColumn> justColumnList = justMetadata.getListColumns();
+				%>
+	
+				<%
+				//do check2, make sure the field "Schema XpathQuerys" are not empty 
+				if(paramNames == null || paramNames.length != justColumnList.size()){
+				%>
+			    	if (true) {
+			    		throw new java.lang.Exception("Please make sure to configure the \"Outputs->Mapping->Schema XpathQuerys\" for schema <%=schemaName %>");    
+			    	}
+					<%
+					return stringBuffer.toString();
+				}
+				%>
+				if(go_<%=schemaName %>){
+		
+					<%if(paramType.equals("output_single")){%>
+						go_<%=schemaName %> = false;	
+			    		<%=justConn.getName() %> = new <%=justConn.getName() %>Struct();
+			            <%
+		                int i = 0;
+		                for(IMetadataColumn justColumn : justColumnList){    
+			            %>
+			            	// "output_single"--<%=justColumnList.get(i).getLabel() %>
+			            	<%new AssignUtil().gen(justConn,justColumn,"exportParameterList_"+cid,paramNames[i]);%>
+			            	<%	
+			            	i++;
+			            }
+			            %>           	
+			        <%}else if(paramType.equals("output_structure")){%>
+			        	go_<%=schemaName %> = false;
+			        	<%if("sapjco.jar".equals(version)){%>
+							com.sap.mw.jco.JCO.Structure output_structure_<%=justConn.getName() %>_<%=cid %> = exportParameterList_<%=cid %>.getStructure(<%=tableName %>);
+						<%}else if("sapjco3.jar".equals(version)){%>
+							com.sap.conn.jco.JCoStructure output_structure_<%=justConn.getName() %>_<%=cid %> = exportParameterList_<%=cid %>.getStructure(<%=tableName %>);
+						<%}%>
+			    		<%=justConn.getName() %> = new <%=justConn.getName() %>Struct();
+			            <%
+			            int i = 0;
+			            for(IMetadataColumn justColumn : justColumnList){    
+			            %>
+				            // "output_structure"--<%=justColumnList.get(i).getLabel() %>
+				            <%new AssignUtil().gen(justConn,justColumnList.get(i),"output_structure_"+justConn.getName()+"_"+cid,paramNames[i]);%>
+			            	<%	
+			            	i++;
+			            }
+			            %> 
+					<%}else if(paramType.equals("output_table") || paramType.equals("table_output")){%>
+			    		if(table_<%=schemaName %>_<%=cid %>.isLastRow()){ //check the flag first
+			    			go_<%=schemaName %> = false;
+			    		}        	
+	    				<%=justConn.getName() %> = new <%=justConn.getName() %>Struct();
+	            		<%
+		                int i = 0;
+		                for(IMetadataColumn justColumn : justColumnList){  
+	            		%>	
+				            // "table_output" or "output_table"--<%=justColumnList.get(i).getLabel() %>
+				            <%new AssignUtil().gen(justConn,justColumnList.get(i),"table_"+schemaName+"_"+cid,paramNames[i]);%>
+	            			<%	
+	        				i++;
+	            		}
+	            		%> 	
+			            if(go_<%=schemaName %>){
+	            			table_<%=schemaName %>_<%=cid %>.nextRow();
+	            		}     
+		            <%
+		            }
+		            %>
+				}
+			<%	
+			}
+			%>

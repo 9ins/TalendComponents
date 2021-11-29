@@ -1,0 +1,54 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    String apiKey	= ElementParameterParser.getValue(node, "__API_KEY__");
+    List<Map<String, String>> columnTable = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__TRANSLATE_COLS__");
+%>
+
+class <%=cid%>_TranslateColumn {
+	public String COLUMN;
+	public boolean IS_TRANSLATE;
+	public String TARGET_LANG;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// translate columns table 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+java.util.Map<String, <%=cid%>_TranslateColumn> <%=cid%>_translateMap = new java.util.HashMap<String, <%=cid%>_TranslateColumn>();
+<%
+	int cnt = 0;
+	for(java.util.Map<String, String> map : columnTable)
+	{
+		cnt++;
+		String str = map.toString();
+%>			
+		//System.out.println("<%=str%>"); 
+		<%=cid%>_TranslateColumn <%=cid%>_transClass_<%=cnt%> = new <%=cid%>_TranslateColumn(); 
+		<%=cid%>_transClass_<%=cnt%>.COLUMN = "<%=map.get("SCHEMA_COLUMN")%>";
+		<%=cid%>_transClass_<%=cnt%>.IS_TRANSLATE = <%=map.get("IS_TRANSLATE")%>;
+		<%=cid%>_transClass_<%=cnt%>.TARGET_LANG = "<%=map.get("TARGET_LANG")%>";
+		<%=cid%>_translateMap.put(<%=cid%>_transClass_<%=cnt%>.COLUMN, <%=cid%>_transClass_<%=cnt%>);
+<%
+	}
+%>
+
+org.google.translate.api.v2.core.Translator <%=cid%>_translator = new org.google.translate.api.v2.core.Translator(<%=apiKey%>);
+
+

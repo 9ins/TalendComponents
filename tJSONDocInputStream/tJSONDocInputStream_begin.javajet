@@ -1,0 +1,133 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.core.model.utils.NodeUtil
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		java.util.List 
+		java.util.ArrayList 
+    	java.util.Map		
+	" 
+%>
+<% 
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode) codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+	IConnection conn = null;
+	List<? extends IConnection> outConns = NodeUtil.getOutgoingConnections(node, IConnectionCategory.DATA);
+	if (outConns.size() > 0) {
+		conn = outConns.get(0);
+	}
+    IConnection rejectConn = null;
+	List<? extends IConnection> rejectConns = node.getOutgoingConnections("REJECT");
+	if (rejectConns != null && rejectConns.size() > 0) {
+		rejectConn = rejectConns.get(0);
+	}
+	List<IMetadataColumn> listColumns = new ArrayList<IMetadataColumn>(); // dummy
+	List<IMetadataTable> metadatas = node.getMetadataList();
+	if (metadatas != null && metadatas.size() > 0) {
+    	IMetadataTable metadata = metadatas.get(0);
+    	if (metadata != null) {
+    		listColumns = metadata.getListColumns();
+		}
+	}
+	@SuppressWarnings("unchecked")
+	List<Map<String, String>> configList = (List<Map<String,String>>) ElementParameterParser.getObjectValue(node, "__COLUMN_CONFIG__");
+    String jsonFile = ElementParameterParser.getValue(node, "__FILENAME__");
+    String loopPath = ElementParameterParser.getValue(node, "__LOOP_PATH__");
+    if (loopPath == null || loopPath.trim().isEmpty()) {
+    	loopPath = "null";
+    }
+    boolean provideJsonObject = "true".equals(ElementParameterParser.getValue(node, "__PROVIDE_CURRENT_JSON_OBJECT__"));
+    boolean dieOnError = "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+    boolean log4jEnabled = "true".equals(org.talend.core.model.process.ElementParameterParser.getValue(node.getProcess(), "__LOG4J_ACTIVATE__")) && 
+   							"JOBLET".equals(node.getComponent().getComponentType().toString()) == false;
+%>
+	de.jlo.talendcomp.json.streaming.JsonStreamParser <%=cid%> = new de.jlo.talendcomp.json.streaming.JsonStreamParser();
+	<%=cid%>.setInputFile(<%=jsonFile%>);
+	<%=cid%>.setLoopPath(<%=loopPath%>); // must set before adding the column attribute paths
+<%  for (Map<String, String> config : configList) {
+		String name = config.get("SCHEMA_COLUMN");
+		String jsonPath = config.get("JSON_PATH");
+		if (jsonPath == null || jsonPath.trim().isEmpty()) {
+			jsonPath = "null";
+		}
+		boolean use = "true".equals(config.get("USE"));
+		if (use == false) {
+			continue;
+		} %>
+	<%=cid%>.addColumnAttrPath("<%=name%>", <%=jsonPath%>);
+<%  } %>
+	int count_<%=cid%> = 0;
+	int countRejected_<%=cid%> = 0;
+	while (true) {
+		try {
+			if (<%=cid%>.next() == false) {
+				break;
+			}
+<%	 if (conn != null) { %>
+			<%=conn.getName()%> = new <%=conn.getName()%>Struct();
+<%	 } %>
+<%  if (provideJsonObject) { %>
+			globalMap.put("<%=cid%>_CURRENT_NODE", <%=cid%>.getLoopJsonNode());
+<%  } %>
+<%  for (int i = 0; i < listColumns.size(); i++) {
+		Map<String, String> config = configList.get(i);
+		boolean use = "true".equals(config.get("USE"));
+		if (use == false) {
+			continue;
+		}
+		IMetadataColumn mc = listColumns.get(i);
+		String pattern = mc.getPattern();
+		if (pattern == null || pattern.trim().isEmpty()) {
+			pattern = "null";
+		}
+		String javaClassName = mc.getTalendType().substring(3);
+		boolean isDateValue = javaClassName.contains("Date") || javaClassName.contains("Time");
+		String javaPackageClassName = JavaTypesManager.getTypeToGenerate(mc.getTalendType(), true);  %>
+			{
+				String valueStr = <%=cid%>.getValue("<%=mc.getLabel()%>");
+<%      if (isDateValue) { %>				
+				<%=javaPackageClassName%> var = de.jlo.talendcomp.json.TypeUtil.convertTo<%=javaClassName%>(valueStr, <%=pattern%>);
+<%      } else { %>
+				<%=javaPackageClassName%> var = de.jlo.talendcomp.json.TypeUtil.convertTo<%=javaClassName%>(valueStr);
+<%      } 
+		if (conn != null) {
+			if (mc.isNullable() == false) { %>
+				if (var == null) {
+					throw new Exception("Not-nullable attribute: <%=mc.getLabel()%> is null in record index: " + count_<%=cid%>);
+				}
+<%			} %>
+				<%=conn.getName()%>.<%=mc.getLabel()%> = var;
+<%		} %>
+			}
+<%	} // for %> 
+			count_<%=cid%>++;
+<%  if (rejectConn != null) { %>
+			<%=rejectConn.getName()%> = null; // set reject flow to null, not problem received
+<%  } %>
+		} catch (Exception e) {
+			globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+<%  if (dieOnError) { %>
+<% 		if (log4jEnabled) { %>
+			log.error(currentComponent + ": " + e.getMessage(), e);
+<% 		} %>
+			throw e;
+<%  } else { %>
+			countRejected_<%=cid%>++;
+<%		if (conn != null) { %>
+			<%=conn.getName()%> = null;
+<%  	} %>
+<%  	if (rejectConn != null) { %>
+			<%=rejectConn.getName()%> = new <%=rejectConn.getName()%>Struct();
+			<%=rejectConn.getName()%>.documentNumber = count_<%=cid%>;
+			<%=rejectConn.getName()%>.json = <%=cid%>.getLoopJsonString();
+			<%=rejectConn.getName()%>.errorMessage = e.getMessage();			
+<%  	} %>
+<%  } %>
+		}

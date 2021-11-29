@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<COMPONENT>
+    <HEADER AUTHOR="Kooin-Shin" 
+    		COMPATIBILITY="ALL" 
+    		DATA_AUTO_PROPAGATE="false" 
+    		HAS_CONDITIONAL_OUTPUTS="false" 
+    		PARTITIONING="AUTO" 
+    		PLATEFORM="ALL" 
+    		RELEASE_DATE="20200508R" 
+    		SCHEMA_AUTO_PROPAGATE="true" 
+    		SERIAL="" 
+    		STARTABLE="true" 
+    		STATUS="RELEASE" 
+    		VERSION="1.01">
+        <SIGNATURE/>
+    </HEADER>
+    
+    <FAMILIES>
+        <FAMILY>ChaosToCosmos</FAMILY>
+    </FAMILIES>
+    
+    <DOCUMENTATION>
+        <URL>http://www.chaostocosmos.org/</URL>
+    </DOCUMENTATION>
+    
+    <CONNECTORS>
+        <CONNECTOR CTYPE="FLOW" MAX_INPUT="0" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="ITERATE" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="SUBJOB_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="COMPONENT_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="RUN_IF" MAX_INPUT="1" MAX_OUTPUT="1"/>
+    </CONNECTORS>
+    
+    <PARAMETERS>
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="SCHEMA" NAME="OUTPUT_TYPE" NUM_ROW="1" SHOW_IF="true">
+            <ITEMS DEFAULT="STRING">
+                <ITEM NAME="STRING" VALUE="STRING"/>
+                <ITEM NAME="BYTES" VALUE="BYTES"/>
+            </ITEMS>
+        </PARAMETER>
+        <PARAMETER FIELD="SCHEMA_TYPE" GROUP="SCHEMA" NAME="OUTPUT_SCHEMA" NUM_ROW="2" SHOW_IF="true">
+            <TABLE IF="(OUTPUT_TYPE == 'BYTES'" READONLY="true">
+                <COLUMN CUSTOM="true" NAME="payload" READONLY="true" TYPE="id_byte[]"/>
+                <COLUMN CUSTOM="true" NAME="topic" READONLY="true" TYPE="id_String"/>
+                <COLUMN CUSTOM="true" NAME="partition" READONLY="true" TYPE="id_Integer"/>
+                <COLUMN CUSTOM="true" NAME="offset" READONLY="true" TYPE="id_Long"/>
+            </TABLE>
+            <TABLE IF="(OUTPUT_TYPE == 'BYTES'" READONLY="true">
+                <COLUMN CUSTOM="true" NAME="payload" READONLY="true" TYPE="id_byte[]"/>
+                <COLUMN CUSTOM="true" NAME="topic" READONLY="true" TYPE="id_String"/>
+                <COLUMN CUSTOM="true" NAME="partition" READONLY="true" TYPE="id_Integer"/>
+                <COLUMN CUSTOM="true" NAME="offset" READONLY="true" TYPE="id_Long"/>
+            </TABLE>
+            <TABLE IF="(OUTPUT_TYPE == 'STRING'" READONLY="true">
+                <COLUMN CUSTOM="true" NAME="payload" READONLY="true" TYPE="id_String"/>
+                <COLUMN CUSTOM="true" NAME="topic" READONLY="true" TYPE="id_String"/>
+                <COLUMN CUSTOM="true" NAME="partition" READONLY="true" TYPE="id_Integer"/>
+                <COLUMN CUSTOM="true" NAME="offset" READONLY="true" TYPE="id_Long"/>
+            </TABLE>
+            <TABLE IF="(OUTPUT_TYPE == 'STRING'" READONLY="true">
+                <COLUMN CUSTOM="true" NAME="payload" READONLY="true" TYPE="id_String"/>
+                <COLUMN CUSTOM="true" NAME="topic" READONLY="true" TYPE="id_String"/>
+                <COLUMN CUSTOM="true" NAME="partition" READONLY="true" TYPE="id_Integer"/>
+                <COLUMN CUSTOM="true" NAME="offset" READONLY="true" TYPE="id_Long"/>                
+            </TABLE>
+        </PARAMETER>
+        
+        <PARAMETER FIELD="LABEL" GROUP="PROPERTY" NAME="PROPERTY_LABEL" NUM_ROW="3" SHOW_IF="true">
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="PROPERTY" NAME="BROKER_LIST" NUM_ROW="4" SHOW_IF="true">
+            <DEFAULT>"host1:port1, ..."</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="PROPERTY" NAME="TOPIC" NUM_ROW="5" SHOW_IF="true">
+            <DEFAULT>"Topic"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="PROPERTY" NAME="PARTITIONS" NUM_ROW="5" SHOW_IF="true">
+            <DEFAULT>"0, 1, 2"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="PROPERTY" NAME="GROUP_ID" NUM_ROW="6" SHOW_IF="true">
+            <DEFAULT>"GroupId"</DEFAULT>
+        </PARAMETER>
+        <!-- 
+        <PARAMETER FIELD="TEXT" GROUP="PROPERTY" NAME="SESSION_TIMEOUT" NUM_ROW="6" SHOW_IF="true">
+            <DEFAULT>"30000"</DEFAULT>
+        </PARAMETER>
+         -->
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="PROPERTY" NAME="COMMIT_SYNC" NUM_ROW="6" SHOW_IF="true">
+            <ITEMS DEFAULT="true">
+                <ITEM NAME="true" VALUE="true"/>
+                <ITEM NAME="false" VALUE="false"/>
+            </ITEMS> 
+        </PARAMETER>        
+		<PARAMETER NAME="CONFIG_TABLE" FIELD="TABLE" GROUP="PROPERTY" NUM_ROW="7" NB_LINES="5" SHOW="true" >
+			<ITEMS> 
+	    	   	<ITEM NAME="CONFIG_KEY" FIELD="OPENED_LIST"> 
+	    	   		<ITEMS DEFAULT="enable.auto.commit">
+	    	   			<ITEM NAME="max.partition.fetch.bytes" 		VALUE="max.partition.fetch.bytes" />
+	    	   			<ITEM NAME="ssl.key.password" 				VALUE="ssl.key.password" />
+	    	   			<ITEM NAME="ssl.keystore.location" 			VALUE="ssl.keystore.location" />
+	    	   			<ITEM NAME="ssl.keystore.password" 			VALUE="ssl.keystore.password" />
+	    	   			<ITEM NAME="ssl.truststore.location" 		VALUE="ssl.truststore.location" />
+	    	   			<ITEM NAME="ssl.truststore.password" 		VALUE="ssl.truststore.password" />
+	    	   			<ITEM NAME="ssl.enabled.protocols" 			VALUE="ssl.enabled.protocols" />
+	    	   			<ITEM NAME="ssl.keystore.type" 				VALUE="ssl.keystore.type" />
+	    	   			<ITEM NAME="ssl.protocol" 					VALUE="ssl.protocol" />
+	    	   			<ITEM NAME="ssl.provider" 					VALUE="ssl.provider" />
+	    	   			<ITEM NAME="ssl.truststore.type" 			VALUE="ssl.truststore.type" />
+	    	   			<ITEM NAME="ssl.trustmanager.algorithm" 	VALUE="ssl.trustmanager.algorithm" />
+	    	   			<ITEM NAME="ssl.keymanager.algorithm" 		VALUE="ssl.keymanager.algorithm" />
+	    	   			<ITEM NAME="ssl.cipher.suites" 				VALUE="ssl.cipher.suites" />
+	    	   			<ITEM NAME="auto.offset.reset" 				VALUE="auto.offset.reset" />
+	    	   			<ITEM NAME="enable.auto.commit" 			VALUE="enable.auto.commit" />
+	    	   			<ITEM NAME="fetch.max.bytes" 				VALUE="fetch.max.bytes" />
+	    	   			<ITEM NAME="group.instance.id" 				VALUE="group.instance.id" />
+	    	   			<ITEM NAME="isolation.level" 				VALUE="isolation.level" />
+	    	   			<ITEM NAME="max.poll.interval.ms" 			VALUE="max.poll.interval.ms" />
+	    	   			<ITEM NAME="max.poll.records" 				VALUE="max.poll.records" />
+	    	   			<ITEM NAME="receive.buffer.bytes" 			VALUE="receive.buffer.bytes" />
+	    	   			<ITEM NAME="request.timeout.ms" 			VALUE="request.timeout.ms" />
+	    	   			<ITEM NAME="sasl.jaas.config" 				VALUE="sasl.jaas.config" />
+	    	   			<ITEM NAME="sasl.kerberos.service.name" 	VALUE="sasl.kerberos.service.name" />
+	    	   			<ITEM NAME="sasl.mechanism" 				VALUE="sasl.mechanism" />
+	    	   			<ITEM NAME="security.protocol" 				VALUE="security.protocol" />
+	    	   			<ITEM NAME="send.buffer.bytes" 				VALUE="send.buffer.bytes" />
+	    	   			<ITEM NAME="auto.commit.interval.ms" 		VALUE="auto.commit.interval.ms" />	    	   			
+	    	   		</ITEMS>
+	    	   	</ITEM>       		
+	       		<ITEM NAME="CONFIG_VALUE" VALUE="&quot;&quot;"/>
+			</ITEMS>
+	    </PARAMETER>		
+        
+        <PARAMETER FIELD="LABEL" GROUP="DATE" NAME="DATE_NOTICE" NUM_ROW="9" SHOW_IF="true">
+        </PARAMETER>
+        <PARAMETER FIELD="DATE" GROUP="DATE" NAME="START_DATE" NUM_ROW="10" SHOW_IF="true">
+            <DEFAULT>""</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="DATE" GROUP="DATE" NAME="END_DATE" NUM_ROW="10" SHOW_IF="true">
+            <DEFAULT>""</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="DATE" NAME="POLL_TIMEOUT" NUM_ROW="10" SHOW_IF="true">
+            <DEFAULT>"1000"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="LABEL" NAME="VERSION" NUM_ROW="100" SHOW="true"/>
+    </PARAMETERS>
+    
+    <ADVANCED_PARAMETERS>
+        <PARAMETER FIELD="CHECK" NAME="DIE_ON_ERROR" NUM_ROW="1" SHOW_IF="true">
+            <DEFAULT>false</DEFAULT>
+        </PARAMETER>
+    </ADVANCED_PARAMETERS>
+    
+    <CODEGENERATION>
+        <IMPORTS>
+            <IMPORT MODULE="kafka-clients-2.4.0.jar" NAME="kafka-clients-2.4.0" REQUIRED="true"/>
+            <IMPORT MODULE="slf4j-api-1.6.6.jar" NAME="slf4j-api-1.6.6" REQUIRED="true"/>
+            <IMPORT MODULE="slf4j-log4j12-1.6.6.jar" NAME="slf4j-log4j12-1.6.6" REQUIRED="true"/>
+        </IMPORTS>
+    </CODEGENERATION>
+    
+    <RETURNS>
+        <RETURN AVAILABILITY="AFTER" NAME="NB_LINE" TYPE="id_Integer"/>
+    </RETURNS>
+</COMPONENT>

@@ -1,0 +1,98 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    List< ? extends IConnection> inConns = node.getIncomingConnections();
+    
+	class ReflectClass {
+		private java.util.List<String> getAllMethods(java.util.List<String> list, Class<?> clazz) {
+		   java.lang.reflect.Method[] methods = clazz.getMethods();
+		   for(java.lang.reflect.Method m : methods) {
+		     if(java.lang.reflect.Modifier.isPublic(m.getModifiers())) {
+		     	String stat = java.lang.reflect.Modifier.isStatic(m.getModifiers()) ? "static" : "";
+		     	list.add(String.format("CLASS: %-20s   %-55s  %6s  METHOD: %-30s   ARGS: %-300s", clazz.getSimpleName(), m.getReturnType().getName(), stat, m.getName(), java.util.Arrays.toString(m.getParameterTypes())));
+		     }
+		   }
+		   clazz = clazz.getSuperclass();
+		   if(clazz != null) {
+		   	 getAllMethods(list, clazz);
+		   }
+		   return list;
+		}	
+	}
+	
+	ReflectClass rc = new ReflectClass();
+	
+	java.util.ArrayList<String> methodList = new java.util.ArrayList<String>();
+	
+	String projectName = codeGenArgument.getCurrentProjectName();
+	String path = codeGenArgument.getRuntimeFilePath();
+%>
+<%
+	methodList.add("##########################################################################################");
+	methodList.add("############################## CodeGeneratorArgument");
+	methodList.add("##########################################################################################");
+	rc.getAllMethods(methodList, codeGenArgument.getClass());
+%>
+<%
+	methodList.add("##########################################################################################");
+	methodList.add("############################## ElementParameterParser");
+	methodList.add("##########################################################################################");
+	rc.getAllMethods(methodList, ElementParameterParser.class);
+%>
+<%
+	methodList.add("##########################################################################################");
+	methodList.add("############################## INode");
+	methodList.add("##########################################################################################");
+	rc.getAllMethods(methodList, INode.class);
+%>
+<%
+	methodList.add("##########################################################################################");
+	methodList.add("############################## IConnection");
+	methodList.add("##########################################################################################");
+	rc.getAllMethods(methodList, IConnection.class);
+%>
+<%
+	methodList.add("##########################################################################################");
+	methodList.add("############################## IConnectionCategory");
+	methodList.add("##########################################################################################");
+	rc.getAllMethods(methodList, IConnectionCategory.class);
+%>
+<%
+	methodList.add("##########################################################################################");
+	methodList.add("############################## IMetadataTable");
+	methodList.add("##########################################################################################");
+	rc.getAllMethods(methodList, IMetadataTable.class);
+%>
+<%
+	methodList.add("##########################################################################################");
+	methodList.add("############################## IMetadataColumn");
+	methodList.add("##########################################################################################");
+	rc.getAllMethods(methodList, IMetadataColumn.class);
+%>
+<%
+	for(int i=0; i<methodList.size(); i++) {
+	String s = methodList.get(i);
+%>
+		System.out.println("<%=s%>");
+<%
+	}
+%>
+
+System.out.println("Project : <%=projectName%>");
+System.out.println("Path : <%=path%>");

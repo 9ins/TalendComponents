@@ -1,0 +1,47 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();    
+%>
+
+<%
+int threadCount = 0;
+List< ? extends IConnection> outConns_ = node.getOutgoingConnections("THREAD_PROCESS");
+if(outConns_ != null && !outConns_.isEmpty()) {
+	for(IConnection outConn : outConns_) {
+		String connNm = outConn.getTarget().getUniqueName();
+		%>
+			Thread <%=cid%>_thr_<%=threadCount%> = new Thread(new Runnable() {
+				public void run() {
+					try {
+						<%=connNm%>Process(globalMap);
+					} catch(TalendException te) {
+						<%=cid%>_exceptionList.add(te);
+					}
+				}
+			});
+			<%=cid%>_thr_<%=threadCount%>.start();
+			while(!<%=cid%>_thr_<%=threadCount%>.isAlive()) {
+				Thread.sleep(10);
+			}
+			<%=cid%>_threadList.add(<%=cid%>_thr_<%=threadCount%>);
+		<%
+		threadCount++;
+	}
+}
+%>

@@ -1,0 +1,67 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.core.model.process.EConnectionType
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+	String VALUE_TYPE = ElementParameterParser.getValue(node, "__VALUE_TYPE__");
+	String valueType = VALUE_TYPE.equalsIgnoreCase("STRING") ? "String" : "byte[]";
+	    
+	boolean DIE_ON_ERROR = "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+%>
+try {
+	<%
+	java.util.List<? extends IConnection> inConns = node.getIncomingConnections(EConnectionType.FLOW_MAIN);
+	for(IConnection conn : inConns) {
+		IMetadataTable metaTable = conn.getMetadataTable();
+		java.util.List<IMetadataColumn> columns = metaTable.getListColumns();
+		%>
+		String topic = null;
+		Integer partition = -1;
+		<%=valueType%> value = null;
+		<%
+		for(int i=0; i<columns.size(); i++) {
+			IMetadataColumn column = columns.get(i);
+			Object row = conn.getName()+"."+column.getLabel();
+			if(column.getLabel().equals("topic")) {
+			%>
+			topic = <%=conn.getName()%>.<%=column.getLabel()%>;
+			<%
+			} else if(column.getLabel().equals("partition")) {
+			%>
+			partition = <%=conn.getName()%>.<%=column.getLabel()%>;
+			<%
+			} else if(column.getLabel().equals("value")) {
+			%>
+			value = <%=conn.getName()%>.<%=column.getLabel()%>;
+			<%
+			}
+		}
+		%>
+		org.apache.kafka.clients.producer.ProducerRecord<<%=valueType%>, <%=valueType%>> <%=cid%>_record = new org.apache.kafka.clients.producer.ProducerRecord<<%=valueType%>, <%=valueType%>>(topic, value);
+		<%=cid%>_producer.send(<%=cid%>_record);
+		<%
+	}
+	%>
+} catch(Exception e) {
+	if(<%=DIE_ON_ERROR%>) {
+		throw e;
+	} else {
+		e.printStackTrace();
+	}
+}		                    		   

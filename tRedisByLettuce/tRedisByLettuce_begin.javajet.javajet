@@ -1,0 +1,62 @@
+		<%@ jet 
+			imports="
+			org.talend.core.model.process.INode 
+			org.talend.core.model.process.ElementParameterParser 
+			org.talend.designer.codegen.config.CodeGeneratorArgument
+			org.talend.core.model.process.IConnection
+			org.talend.core.model.process.IConnectionCategory
+			java.util.Map
+			java.util.List
+			org.talend.core.model.metadata.IMetadataTable
+			org.talend.core.model.metadata.IMetadataColumn
+		" 
+		%>
+		
+		<%
+		CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+		INode node = (INode)codeGenArgument.getArgument();
+		String cid = node.getUniqueName();
+				
+		boolean useExistConn = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_EXIST_CONN__"));
+		String connection = ElementParameterParser.getValue(node, "__CONNECTION__");
+		boolean useInput = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_INPUT__"));
+		boolean useScript = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_SCRIPT__"));
+		String db_index = ElementParameterParser.getValue(node, "__DB__");
+		String command = ElementParameterParser.getValue(node, "__COMMAND__");
+		String params = ElementParameterParser.getValue(node, "__PARAMETER__");
+		String script = ElementParameterParser.getValue(node, "__SCRIPT__");
+		String codec = ElementParameterParser.getValue(node, "__CODEC__");
+		String host = ElementParameterParser.getValue(node, "__HOST__");
+		String password = ElementParameterParser.getValue(node, "__PASSWORD__");
+		String port = ElementParameterParser.getValue(node, "__PORT__");
+		String timeout = ElementParameterParser.getValue(node, "__TIMEOUT__");
+		boolean dieOnError = "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+		%>
+		
+		int <%=cid%>_port = Integer.parseInt(<%=port%>);
+		long <%=cid%>_timeout = Long.parseLong(<%=timeout%>);
+		String <%=cid%>_password = "";
+		if(<%=password%> != null) {
+			<%=cid%>_password = <%=password%>;
+		} 
+		
+		int nb_line_<%=cid%> = 0;
+		
+		io.lettuce.core.RedisClient <%=cid%>_client = null;
+		io.lettuce.core.api.StatefulRedisConnection<String, String> <%=cid%>_connection = null;
+				
+		if(!<%=useExistConn%>) {			
+			io.lettuce.core.RedisURI <%=cid%>_uri = io.lettuce.core.RedisURI.Builder.redis(<%=host%>, <%=cid%>_port)
+											.withTimeout(java.time.Duration.ofMillis(<%=cid%>_timeout))
+											.withPassword(<%=cid%>_password)
+											.build();
+			<%=cid%>_client = io.lettuce.core.RedisClient.create(<%=cid%>_uri);
+			<%=cid%>_connection = <%=cid%>_client.connect(io.lettuce.core.codec.StringCodec.<%=codec%>);
+		} else {
+			<%=cid%>_connection = (io.lettuce.core.api.StatefulRedisConnection<String, String>)globalMap.get("<%=connection%>");
+			if(<%=cid%>_connection == null) {
+				throw new RuntimeException("There isn't selected connection component!!!");
+			}
+		}
+		
+		

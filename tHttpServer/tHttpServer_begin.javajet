@@ -1,0 +1,80 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName(); 
+    
+    boolean isOutgoing = false;
+    List< ? extends IConnection> outConns = node.getOutgoingConnections();
+	if (outConns != null && !outConns.isEmpty()) {
+		for(IConnection outConn : outConns) {
+			if(outConn.getConnectorName().equals("HANDLER")) {
+				isOutgoing = true;
+				break;
+			}
+		}
+	}
+     
+    String serverIP		 	= ElementParameterParser.getValue(node, "__SERVER_IP__");
+    int serverPort	 		= Integer.parseInt(ElementParameterParser.getValue(node, "__SERVER_PORT__"));
+    int serverBacklog 		= Integer.parseInt(ElementParameterParser.getValue(node, "__SERVER_BACKLOG__"));
+    int ioBuffKb	 		= Integer.parseInt(ElementParameterParser.getValue(node, "__IO_BUFFER__"));
+    boolean isWebHome		= "true".equals(ElementParameterParser.getValue(node, "__USE_WEB_HOME__"));
+    boolean isWelcome		= "true".equals(ElementParameterParser.getValue(node, "__USE_WELCOME_FILE__"));
+    String webHomePath 		= ElementParameterParser.getValue(node, "__WEB_HOME_PATH__");
+    String welcomeFile 		= ElementParameterParser.getValue(node, "__WELCOME_FILE__");
+   
+    int thrCoreSize			= Integer.parseInt(ElementParameterParser.getValue(node, "__THREADPOOL_CORE_SIZE__"));
+    int thrMaxSize			= Integer.parseInt(ElementParameterParser.getValue(node, "__THREADPOOL_MAX_SIZE__"));
+    int thrIdleDelay		= Integer.parseInt(ElementParameterParser.getValue(node, "__THREADPOOL_IDLE_DELAY__"));        
+    int thrWaitQueueSize	= Integer.parseInt(ElementParameterParser.getValue(node, "__THREADPOOL_WAIT_QUEUE_SIZE__"));
+    
+	int probeInterval		= Integer.parseInt(ElementParameterParser.getValue(node, "__MONITOR_PROBE_INTERVAL__"));
+	int infoMsgMax			= Integer.parseInt(ElementParameterParser.getValue(node, "__INFO_MESSAGE_SIZE__"));
+	int errCharLimit		= Integer.parseInt(ElementParameterParser.getValue(node, "__ERROR_CHAR_LIMIT__"));
+    String timeUnit			= ElementParameterParser.getValue(node, "__TIME_UNIT__");
+    String sizeUnit			= ElementParameterParser.getValue(node, "__SIZE_UNIT__");
+    String quantityUnit		= ElementParameterParser.getValue(node, "__QUANTITY_UNIT__");
+    String percentUnit		= ElementParameterParser.getValue(node, "__PERCENT_UNIT__");
+	boolean addUnitStr		= "true".equals(ElementParameterParser.getValue(node, "__ADD_UNIT__"));
+%>
+org.chaostocosmos.http.ChaosHttpServer <%=cid%>_httpServer = new org.chaostocosmos.http.ChaosHttpServer("<%=cid%>",
+																										<%=serverIP%>, 
+																										<%=serverPort%>, 
+																										<%=serverBacklog%>,
+																										<%=isWebHome%>?<%=webHomePath%>:null,
+																										<%=isWelcome%>?<%=welcomeFile%>:null,
+																										<%=thrCoreSize%>, 
+																										<%=thrMaxSize%>, 
+																										<%=thrIdleDelay%>, 
+																										<%=thrWaitQueueSize%>, 
+																										globalMap, 
+																										<%=probeInterval%>, 
+																										<%=infoMsgMax%>,
+																										<%=addUnitStr%>,
+																										<%=errCharLimit%>,
+																										<%=ioBuffKb%>
+																										);
+<%=cid%>_httpServer.setUnit("<%=timeUnit%>", "<%=sizeUnit%>", "<%=quantityUnit%>", "<%=percentUnit%>");
+ 
+if(<%=isOutgoing%>) {
+	globalMap.put("<%=cid%>_HTTP_SERVER", <%=cid%>_httpServer);
+} 
+
+ 
+ 
+ 

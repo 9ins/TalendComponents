@@ -1,0 +1,91 @@
+		<%@ jet 
+			imports="
+			org.talend.core.model.process.INode 
+			org.talend.core.model.process.ElementParameterParser 
+			org.talend.designer.codegen.config.CodeGeneratorArgument
+			org.talend.core.model.process.IConnection
+			org.talend.core.model.process.IConnectionCategory
+			java.util.Map
+			java.util.List
+			org.talend.core.model.metadata.IMetadataTable
+			org.talend.core.model.metadata.IMetadataColumn
+		" 
+		%>
+
+		<%
+		CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+		INode node = (INode)codeGenArgument.getArgument();
+		String cid = node.getUniqueName();
+		
+		String USE_AUTH = ElementParameterParser.getValue(node, "__USE_AUTH__");
+		String USER = ElementParameterParser.getValue(node, "__USER__");
+		String PASSWD = ElementParameterParser.getValue(node, "__PASSWD__");
+		String PROTOCOL = ElementParameterParser.getValue(node, "__PROTOCOL__");
+		String HOST = ElementParameterParser.getValue(node, "__HOST__");
+		String TIMEOUT = ElementParameterParser.getValue(node, "__TIMEOUT__");
+		String BULK_COUNT = ElementParameterParser.getValue(node, "__BULK_COUNT__");
+		String FLUSH_TIMEOUT = "10000"; //ElementParameterParser.getValue(node, "__FLUSH_TIMEOUT__");		
+		String TYPE = ElementParameterParser.getValue(node, "__TYPE__");
+		String INDEX = ElementParameterParser.getValue(node, "__INDEX__");
+		String ID = ElementParameterParser.getValue(node, "__ID__");
+		String ACTIVE_SHARDS = ElementParameterParser.getValue(node, "__ACTIVE_SHARDS__");
+		boolean DIE_ON_ERROR = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+		%>
+		
+		boolean <%=cid%>_USE_AUTH = Boolean.parseBoolean("<%=USE_AUTH%>");
+		String <%=cid%>_USER = <%=USER%>;
+		String <%=cid%>_PASSWD = <%=PASSWD%>;		
+		String <%=cid%>_PROTOCOL = "<%=PROTOCOL%>";		
+		String <%=cid%>_HOST = <%=HOST%>;		
+		int <%=cid%>_BULK_COUNT = Integer.parseInt(<%=BULK_COUNT%>);
+		int <%=cid%>_FLUSH_TIMEOUT = <%=FLUSH_TIMEOUT%>;
+		String <%=cid%>_ACTIVE_SHARDS = "<%=ACTIVE_SHARDS%>";
+		int <%=cid%>_TIMEOUT = Integer.parseInt(<%=TIMEOUT%>);
+		boolean <%=cid%>_DIE_ON_ERROR = <%=DIE_ON_ERROR%>;		
+		
+		globalMap.put("<%=cid%>_RESPONSE", new java.util.ArrayList());
+		globalMap.put("<%=cid%>_NB_LINE", globalMap.get("<%=cid%>_NB_LINE") == null ? 0L : globalMap.get("<%=cid%>_NB_LINE"));
+		if(globalMap.get("<%=cid%>_bulkMap") == null) {
+			globalMap.put("<%=cid%>_bulkMap", new java.util.ArrayList<java.util.Map<String, Object>>());
+		} 		
+		com.google.gson.Gson <%=cid%>_gson = new com.google.gson.Gson();
+		
+		org.elasticsearch.client.RestClientBuilder <%=cid%>_builder = null;
+		org.elasticsearch.client.RestHighLevelClient <%=cid%>_client = null;
+		List<org.apache.http.HttpHost> <%=cid%>_HOST_LIST = java.util.Arrays.asList(<%=cid%>_HOST.split(",")).stream().map(s -> new org.apache.http.HttpHost(s.substring(0, s.indexOf(":")).trim(), Integer.parseInt(s.substring(s.indexOf(":")+1).trim()), <%=cid%>_PROTOCOL)).collect(java.util.stream.Collectors.toList());
+		<%=cid%>_HOST_LIST.stream().forEach(h -> System.out.println(h.toString()));
+		if(<%=cid%>_USE_AUTH) {
+			final org.apache.http.client.CredentialsProvider credentialsProvider = new org.apache.http.impl.client.BasicCredentialsProvider();
+			credentialsProvider.setCredentials(org.apache.http.auth.AuthScope.ANY, new org.apache.http.auth.UsernamePasswordCredentials(<%=cid%>_USER, <%=cid%>_PASSWD));
+			<%=cid%>_builder = org.elasticsearch.client.RestClient.builder(<%=cid%>_HOST_LIST.toArray(new org.apache.http.HttpHost[<%=cid%>_HOST_LIST.size()])).setHttpClientConfigCallback(new org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback() {													
+				        @Override
+				        public org.apache.http.impl.nio.client.HttpAsyncClientBuilder customizeHttpClient(org.apache.http.impl.nio.client.HttpAsyncClientBuilder httpClientBuilder) {
+				            return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+				        }
+				    });
+		} else {
+			<%=cid%>_builder = org.elasticsearch.client.RestClient.builder(<%=cid%>_HOST_LIST.toArray(new org.apache.http.HttpHost[<%=cid%>_HOST_LIST.size()]));			
+		}
+		<%=cid%>_client = new org.elasticsearch.client.RestHighLevelClient(<%=cid%>_builder);
+		
+		globalMap.put("<%=cid%>_FLUSH", 0);
+		
+		java.util.Timer <%=cid%>_timer = null;
+		if(globalMap.get("<%=cid%>_timer") == null) {
+			<%=cid%>_timer = new java.util.Timer();
+			<%=cid%>_timer.schedule(new java.util.TimerTask() {
+				@Override
+				public void run() {				
+					globalMap.put("<%=cid%>_FLUSH", ((int)globalMap.get("<%=cid%>_FLUSH"))+1);
+				}
+			}, <%=cid%>_FLUSH_TIMEOUT, <%=cid%>_FLUSH_TIMEOUT);
+			globalMap.put("<%=cid%>_timer", <%=cid%>_timer); 
+		} else {
+			<%=cid%>_timer = (java.util.Timer)globalMap.get("<%=cid%>_timer");
+		}
+
+		java.util.ArrayList<java.util.Map<String, Object>> <%=cid%>_bulkList = new java.util.ArrayList<java.util.Map<String, Object>>();
+		
+		
+		
+		

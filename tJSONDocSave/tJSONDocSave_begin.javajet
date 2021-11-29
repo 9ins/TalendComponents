@@ -1,0 +1,99 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+      org.talend.core.model.utils.NodeUtil
+		java.util.List
+	" 
+%>
+<% 
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode) codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+    String docComp = ElementParameterParser.getValue(node, "__JSON_DOCUMENT__");
+	String file = ElementParameterParser.getValue(node, "__OUTPUT_FILE_PATH__");
+	boolean outputAsfile = "true".equals(ElementParameterParser.getValue(node, "__OUTPUT_AS_FILE__"));
+	boolean prettyPrint = "true".equals(ElementParameterParser.getValue(node, "__PRETTY_PRINT__"));
+	boolean ignoreEmpty = "true".equals(ElementParameterParser.getValue(node, "__IGNORE_EMPTY__"));
+	boolean debugOutput = "true".equals(ElementParameterParser.getValue(node, "__STD_OUTPUT__"));
+	boolean schemaProvided = ("NO_JSON_SCHEMA".equals(ElementParameterParser.getValue(node.getProcess(), docComp, "__SETUP_JSON_SCHEMA__")) == false);
+	boolean validate = "true".equals(ElementParameterParser.getValue(node, "__VALIDATE_OUTPUT__")) && schemaProvided;
+	boolean outputAsNode = "true".equals(ElementParameterParser.getValue(node, "__OUTPUT_AS_NODE__"));
+	String outputColumn = ElementParameterParser.getValue(node, "__JSON_OUTPUT_COLUMN__"); 
+	List<? extends IConnection> outConns = NodeUtil.getOutgoingConnections(node, IConnectionCategory.DATA);
+	String outgoingConnName = null;
+	if (outConns != null && outConns.isEmpty() == false) {
+    	IConnection outConn = outConns.get(0);
+    	outgoingConnName = outConn.getName();
+	}
+	boolean log4jEnabled = "true".equals(org.talend.core.model.process.ElementParameterParser.getValue(node.getProcess(), "__LOG4J_ACTIVATE__")) && 
+   							"JOBLET".equals(node.getComponent().getComponentType().toString()) == false;
+   	boolean unwrap = "true".equals(ElementParameterParser.getValue(node, "__REMOVE_ROOT_ARRAY__"));
+   	boolean dieWhileUnwrap = "true".equals(ElementParameterParser.getValue(node, "__DIE_IF_REMOVAL_NOT_POSSIBLE__"));
+   	String unwrapCondition = "false";
+   	if (unwrap) {
+	   	unwrapCondition = ElementParameterParser.getValue(node, "__REMOVE_ROOT_ARRAY_CONDITION__");
+   	}
+%>
+	de.jlo.talendcomp.json.JsonDocument <%=cid%> = new de.jlo.talendcomp.json.JsonDocument((com.fasterxml.jackson.databind.JsonNode) globalMap.get("<%=docComp%>_CURRENT_NODE"));
+<%	if (validate) { %>
+	String <%=cid%>_validationErrors = <%=cid%>.validate(jobName + ".<%=docComp%>");
+	if (<%=cid%>_validationErrors != null) {
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", <%=cid%>_validationErrors);
+		throw new Exception(<%=cid%>_validationErrors);
+	}
+<%	} %>	
+	com.fasterxml.jackson.databind.JsonNode <%=cid%>_outputNode = null;
+	try {
+		<%=cid%>_outputNode = <%=cid%>.getConditionalUnwrappedRootNode((<%=unwrapCondition%>), <%=dieWhileUnwrap%>);
+		globalMap.put("<%=cid%>_CURRENT_NODE", <%=cid%>_outputNode);
+	} catch (Exception e) {
+<% 		if (log4jEnabled) { %>
+		log.error(currentComponent + ": " + e.getMessage(), e);
+<% 		} %>
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+		throw e;
+	}
+<%	if (outputAsfile) { %>
+	String filePath_<%=cid%> = <%=file%>;
+	try {
+		<%=cid%>.writeToFile(filePath_<%=cid%>, <%=prettyPrint%>, <%=ignoreEmpty%>);
+		globalMap.put("<%=cid%>_OUTPUT_FILE_PATH", filePath_<%=cid%>);
+	} catch (Exception e) {
+<% 		if (log4jEnabled) { %>
+		log.error(currentComponent + ": " + e.getMessage(), e);
+<% 		} %>
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+		throw e;
+	}
+<%	} %>
+	Object jsonOutput_<%=cid%> = null;
+<%	if (outputAsNode) { %>
+	jsonOutput_<%=cid%> = <%=cid%>_outputNode;
+<%	} else { %>
+	try {
+		jsonOutput_<%=cid%> = <%=cid%>.getJsonString(<%=cid%>_outputNode, <%=prettyPrint%>, <%=ignoreEmpty%>);
+	} catch (Exception e) {
+<%		if (log4jEnabled) { %>
+		log.error(currentComponent + ": " + e.getMessage(), e);
+<%		} %>
+		globalMap.put("<%=cid%>_ERROR_MESSAGE", e.getMessage());
+		throw e;
+	}
+	globalMap.put("<%=cid%>_JSON_STRING", (String) jsonOutput_<%=cid%>);
+<%		if (debugOutput) { %>
+	System.out.println(jsonOutput_<%=cid%>);
+<%		} %>
+<%	} %>
+<%	if (outgoingConnName != null && outputColumn != null) { %>
+	if (true) { // open a loop for one row
+<%		if (outputAsNode) { %>
+		 <%=outgoingConnName%>.<%=outputColumn%> = jsonOutput_<%=cid%>;
+<%		} else { %>
+		 <%=outgoingConnName%>.<%=outputColumn%> = (String) jsonOutput_<%=cid%>;
+<%		} %>
+<%	} %>
+	

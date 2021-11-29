@@ -1,0 +1,75 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    boolean dieOnError = "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__").trim());
+%>
+
+<%
+	String inputRowName = null;
+    List< ? extends IConnection> inConns = node.getIncomingConnections();
+    if (inConns != null && !inConns.isEmpty()) {
+        IConnection inConn = inConns.get(0);
+        inputRowName = inConn.getName();
+    }
+    String outputRowName = null;
+    List< ? extends IConnection> outConns = node.getOutgoingSortedConnections();
+    if (outConns != null && !outConns.isEmpty()) {
+        IConnection outConn = outConns.get(0);
+        if(outConn.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)){
+       		outputRowName = outConn.getName();
+       	}
+    }    
+    List<IMetadataTable> metadatas = node.getMetadataList();
+    if (metadatas != null && metadatas.size() > 0) {	//0
+    	IMetadataTable metadata = metadatas.get(0);
+    	if (metadata != null) {	//1
+    		List<IMetadataColumn> outColumnList = metadata.getListColumns();
+    		for(IMetadataColumn column : outColumnList) { //2
+%>
+try {
+	//System.out.println("Is translate: "+<%=cid%>_translateMap.get("<%=column.getLabel()%>").IS_TRANSLATE);
+	//System.out.println("Contents: "+<%=inputRowName%>.<%=column.getLabel()%>);
+	if(<%=cid%>_translateMap.get("<%=column.getLabel()%>").IS_TRANSLATE && <%=inputRowName%>.<%=column.getLabel()%> != null && !<%=inputRowName%>.<%=column.getLabel()%>.equals("")) {
+		<%
+			if(outputRowName != null && inputRowName != null) {
+		%>		
+			String <%=cid%>_lang = <%=cid%>_translator.detect(new String[]{<%=inputRowName%>.<%=column.getLabel()%>})[0][0].getLanguage();
+			//System.out.println(<%=cid%>_lang);
+			if(<%=cid%>_lang.equals(<%=cid%>_translateMap.get("<%=column.getLabel()%>").TARGET_LANG)) { 
+				throw new RuntimeException("Source and target language is same!!!");
+			}
+			<%=outputRowName%>.<%=column.getLabel()%> = <%=cid%>_translator.translate(<%=inputRowName%>.<%=column.getLabel()%>, <%=cid%>_lang, <%=cid%>_translateMap.get("<%=column.getLabel()%>").TARGET_LANG).getTranslatedText();
+		<% 
+			}
+		%>
+	}
+} catch(Exception e) {
+	if(<%=dieOnError%>) {
+		throw e;
+	} else {
+		e.printStackTrace();
+	}
+}
+<%
+			} // 2 
+		} //1
+	}//0
+%>
+

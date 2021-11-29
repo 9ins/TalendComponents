@@ -1,0 +1,181 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();
+    
+	boolean useSimple = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_SIMPLE__"));
+	boolean useCron = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_CRON__"));
+	boolean isAllWeek = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__WEEK_ALL__"));
+	String[] weeks = new String[7];
+	weeks[0] = "true".equals(ElementParameterParser.getValue(node, "__WEEK_MON__")) ? "MON" : "";
+	weeks[1] = "true".equals(ElementParameterParser.getValue(node, "__WEEK_TUE__")) ? "TUE" : "";
+	weeks[2] = "true".equals(ElementParameterParser.getValue(node, "__WEEK_WED__")) ? "WED" : "";
+	weeks[3] = "true".equals(ElementParameterParser.getValue(node, "__WEEK_THU__")) ? "THU" : "";
+	weeks[4] = "true".equals(ElementParameterParser.getValue(node, "__WEEK_FRI__")) ? "FRI" : "";
+	weeks[5] = "true".equals(ElementParameterParser.getValue(node, "__WEEK_SAT__")) ? "SAT" : "";
+	weeks[6] = "true".equals(ElementParameterParser.getValue(node, "__WEEK_SUN__")) ? "SUN" : "";
+	List<Map<String, String>> simpleExpr = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__SIMPLE__");
+	List<Map<String, String>> cronExpr = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__CRON__");
+	boolean dieOnError = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+%>
+
+<%
+String weekOfDay = "";
+if(!isAllWeek) {
+	for(String wd : weeks) {
+		weekOfDay += ((!wd.equals("")) ? wd + "," : "");
+	}
+	if(weekOfDay.length() != 0 && weekOfDay.lastIndexOf(",") == weekOfDay.length()-1) {
+		weekOfDay = weekOfDay.substring(0, weekOfDay.lastIndexOf(","));
+	}
+} else {
+	weekOfDay += "MON-SUN";
+}
+%>
+
+class DateUtil {
+	public Date getDate(String dateStr) throws Exception {
+		String pattern = null;
+		if(dateStr.equalsIgnoreCase("NOW") || dateStr.equalsIgnoreCase("")) {
+			return new java.util.Date();
+		} else if(dateStr.equalsIgnoreCase("INFINITE") || dateStr.equalsIgnoreCase("*")) {
+			return null;
+		} else if(dateStr.length() == 4) {
+			pattern = "yyyy";
+		} else if(dateStr.length() == 6) {
+			pattern = "yyyyMM";
+		} else if(dateStr.length() == 8) {
+			pattern = "yyyyMMdd";
+		} else if(dateStr.length() == 10) {
+			pattern = "yyyy-MM-dd";
+		} else if(dateStr.length() == 14) {
+			pattern = "yyyyMMddhhmmss";
+		} else if(dateStr.length() == 19) {
+			pattern = "yyyy-MM-dd hh:mm:ss";
+		} else {
+			throw new IllegalArgumentException("Date format is wrong: "+dateStr);
+		}  
+		java.text.SimpleDateFormat format = new java.text.SimpleDateFormat(pattern);
+		return format.parse(dateStr);
+	}
+}
+DateUtil dateUtil = new DateUtil();
+
+
+///////////////////////////////////////////////////////
+// cron expression map
+///////////////////////////////////////////////////////
+java.util.List<java.util.HashMap<String, Object>> <%=cid%>_expr = new java.util.ArrayList<java.util.HashMap<String, Object>>();
+java.util.HashMap<String, Object> <%=cid%>_rowMap = null;
+///////////////////////////////////////////////////////
+// Simple expression setting
+///////////////////////////////////////////////////////
+String <%=cid%>_cron = null;
+<%
+if(useSimple) {
+	for(int i=0; i<simpleExpr.size(); i++)
+	{
+		java.util.Map<String, String> map = simpleExpr.get(i); 
+%>
+		<%=cid%>_rowMap = new java.util.HashMap<String, Object>();
+		<%=cid%>_rowMap.put("CRON_COMPONENT", 	"<%=map.get("SIMPLE_COMPONENT")%>");
+		<%=cid%>_rowMap.put("CRON_START_DATE", dateUtil.getDate("<%=map.get("SIMPLE_START_DATE")%>"));
+		<%=cid%>_rowMap.put("CRON_END_DATE", 	dateUtil.getDate("<%=map.get("SIMPLE_END_DATE")%>"));
+		<%=cid%>_rowMap.put("CRON_OVERTIME_CANCEL", Boolean.parseBoolean("<%=map.get("SIMPLE_OVERTIME_CANCEL")%>"));
+		<%=cid%>_rowMap.put("CRON_CONCURRENT_RUN", Boolean.parseBoolean("<%=map.get("SIMPLE_CONCURRENT_RUN")%>"));
+		<%=cid%>_rowMap.put("CRON_MISFIRE_POLICY", Boolean.parseBoolean("<%=map.get("SIMPLE_MISFIRE_POLICY")%>"));
+		<%=cid%>_cron = "<%=map.get("SIMPLE_SECONDS")%>"+" "+
+							   		"<%=map.get("SIMPLE_MINUTES")%>"+" "+
+							   		"<%=map.get("SIMPLE_HOURS")%>"+" "+
+							   		(!"<%=weekOfDay%>".equals("?") ? "?" : "<%=map.get("SIMPLE_DAYS")%>")+" "+
+							   		"<%=map.get("SIMPLE_MONTHS")%>"+" "+
+							   		"<%=weekOfDay%>"+" "+
+							   		"<%=map.get("SIMPLE_YEARS")%>";
+		<%=cid%>_rowMap.put("CRON_EXPR", <%=cid%>_cron);		   
+		<%=cid%>_expr.add(<%=cid%>_rowMap);
+<%
+	}
+} else {
+%>
+
+///////////////////////////////////////////////////////
+// Cron expression setting
+///////////////////////////////////////////////////////
+<%	
+	for(int i=0; i<cronExpr.size(); i++) 
+	{
+		java.util.Map<String, String> map = cronExpr.get(i);
+%>
+		<%=cid%>_rowMap = new java.util.HashMap<String, Object>();
+		<%=cid%>_rowMap.put("CRON_COMPONENT", 	"<%=map.get("CRON_COMPONENT")%>");
+		<%=cid%>_rowMap.put("CRON_START_DATE", dateUtil.getDate("<%=map.get("CRON_START_DATE")%>"));
+		<%=cid%>_rowMap.put("CRON_END_DATE", 	dateUtil.getDate("<%=map.get("CRON_END_DATE")%>"));
+		<%=cid%>_rowMap.put("CRON_OVERTIME_CANCEL", Boolean.parseBoolean("<%=map.get("CRON_OVERTIME_CANCEL")%>"));
+		<%=cid%>_rowMap.put("CRON_CONCURRENT_RUN", Boolean.parseBoolean("<%=map.get("CRON_CONCURRENT_RUN")%>"));
+		<%=cid%>_rowMap.put("CRON_MISFIRE_POLICY", Boolean.parseBoolean("<%=map.get("CRON_MISFIRE_POLICY")%>"));
+		<%=cid%>_rowMap.put("CRON_EXPR", <%=map.get("CRON_EXPR")%>);
+		<%=cid%>_expr.add(<%=cid%>_rowMap);
+<%
+	}
+}
+%>
+
+org.chaostocosmos.scheduler.quartz.CronScheduler <%=cid%>_cronScheduler = new org.chaostocosmos.scheduler.quartz.CronScheduler();
+
+for(java.util.HashMap <%=cid%>_scheduleMap : <%=cid%>_expr) {
+	org.chaostocosmos.scheduler.quartz.CronScheduler.MISFIRE_POLICY <%=cid%>_misFirePolicy = null;
+	if(<%=cid%>_scheduleMap.get("CRON_MISFIRE_POLICY").equals("DO_NOTHING")) {
+		<%=cid%>_misFirePolicy = org.chaostocosmos.scheduler.quartz.CronScheduler.MISFIRE_POLICY.DO_NOTHING;
+	} else if(<%=cid%>_scheduleMap.get("CRON_MISFIRE_POLICY").equals("FIRE_PROCEED")) {
+		<%=cid%>_misFirePolicy = org.chaostocosmos.scheduler.quartz.CronScheduler.MISFIRE_POLICY.FIRE_PROCEED;
+	} else if(<%=cid%>_scheduleMap.get("CRON_MISFIRE_POLICY").equals("IGNORE")) {
+		<%=cid%>_misFirePolicy = org.chaostocosmos.scheduler.quartz.CronScheduler.MISFIRE_POLICY.IGNORE;
+	}
+
+	try {
+<%
+List< ? extends IConnection> outConns = node.getOutgoingConnections("SCHEDULE_PROCESS");
+if(outConns != null && !outConns.isEmpty()) {
+	for(IConnection outConn : outConns) {
+		String compNm = outConn.getTarget().getUniqueName();
+		%>
+		if("<%=compNm%>".equals(<%=cid%>_scheduleMap.get("CRON_COMPONENT"))) {
+			<%=cid%>_cronScheduler.addSchedule((Date)<%=cid%>_scheduleMap.get("CRON_START_DATE"),
+									    (Date)<%=cid%>_scheduleMap.get("CRON_END_DATE"),
+										(boolean)<%=cid%>_scheduleMap.get("CRON_OVERTIME_CANCEL"),
+										(boolean)<%=cid%>_scheduleMap.get("CRON_CONCURRENT_RUN"),
+										<%=cid%>_scheduleMap.get("CRON_EXPR")+"",
+										<%=cid%>_misFirePolicy,
+										(Object)this,
+										<%=cid%>_scheduleMap.get("CRON_COMPONENT")+"Process",
+										globalMap);
+			continue;
+		}									
+		<%
+	}
+}
+%>
+	} catch(Exception e) {
+		if(<%=dieOnError%>) {
+			throw e;
+		} else {
+			e.printStackTrace();
+		}
+	}
+}																			
+

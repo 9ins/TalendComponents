@@ -1,0 +1,29 @@
+		<%@ jet 
+			imports="
+			org.talend.core.model.process.INode 
+			org.talend.core.model.process.ElementParameterParser 
+			org.talend.designer.codegen.config.CodeGeneratorArgument
+			org.talend.core.model.process.IConnection
+			org.talend.core.model.process.IConnectionCategory
+			java.util.Map
+			java.util.List
+			org.talend.core.model.metadata.IMetadataTable
+			org.talend.core.model.metadata.IMetadataColumn
+		" 
+		%>
+
+		<%
+		CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+		INode node = (INode)codeGenArgument.getArgument();
+		String cid = node.getUniqueName();
+		
+		String CONSUMER = ElementParameterParser.getValue(node, "__CONSUMER__");
+		String COMMIT_TYPE = ElementParameterParser.getValue(node, "__COMMIT_TYPE__");
+		%>
+		
+		String <%=cid%>_CONSUMER = "<%=CONSUMER%>_CONSUMER";
+		String <%=cid%>_COMMIT_TYPE = "<%=COMMIT_TYPE%>";
+		
+
+      	
+      	

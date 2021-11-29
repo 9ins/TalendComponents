@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<COMPONENT>
+    <HEADER AUTHOR="Kooin-Shin" 
+    		COMPATIBILITY="ALL" 
+    		DATA_AUTO_PROPAGATE="false" 
+    		HAS_CONDITIONAL_OUTPUTS="false" 
+    		PARTITIONING="AUTO" 
+    		PLATEFORM="ALL" 
+    		RELEASE_DATE="20200221A" 
+    		SCHEMA_AUTO_PROPAGATE="true" 
+    		SERIAL="" 
+    		STARTABLE="true" 
+    		STATUS="ALPHA" 
+    		VERSION="0.93">
+        <SIGNATURE/>
+    </HEADER>
+    <FAMILIES>
+        <FAMILY>Databases/ES</FAMILY>
+    </FAMILIES>
+    <DOCUMENTATION>
+        <URL>http://www.innoquartz.com/</URL>
+    </DOCUMENTATION>
+    <CONNECTORS>
+        <CONNECTOR CTYPE="FLOW" MAX_INPUT="1" MAX_OUTPUT="0"/>
+        <!-- <CONNECTOR BASE_SCHEMA="FAIL" CTYPE="FLOW" MAX_INPUT="0" MAX_OUTPUT="1" NAME="FAIL"/>  -->
+        <CONNECTOR CTYPE="ITERATE" MAX_INPUT="0" MAX_OUTPUT="0"/>
+        <CONNECTOR CTYPE="SUBJOB_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="COMPONENT_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="RUN_IF" MAX_INPUT="1" MAX_OUTPUT="1"/>
+    </CONNECTORS>
+    <PARAMETERS>
+        <PARAMETER FIELD="SCHEMA_TYPE" GROUP="SCHEMA" NAME="INPUT_SCHEMA" NUM_ROW="3" SHOW_IF="true">
+            <TABLE>
+                <COLUMN NAME="type" READONLY="true" TYPE="id_String"/>
+                <COLUMN NAME="index" READONLY="true" TYPE="id_String"/>
+                <COLUMN NAME="id" READONLY="true" TYPE="id_String"/>
+            </TABLE>
+        </PARAMETER>
+        <!-- 
+        <PARAMETER CONTEXT="FAIL" FIELD="SCHEMA_TYPE" GROUP="SCHEMA" NAME="FAIL_SCHEMA" NUM_ROW="3" SHOW_IF="true">
+            <TABLE READONLY="true">
+                <COLUMN NAME="type" READONLY="true" TYPE="id_String"/>
+                <COLUMN NAME="index" READONLY="true" TYPE="id_String"/>
+                <COLUMN NAME="message" READONLY="true" TYPE="id_String"/>
+            </TABLE>
+        </PARAMETER>
+         -->
+        <PARAMETER FIELD="CHECK" GROUP="AUTH" NAME="USE_AUTH" NUM_ROW="5" SHOW_IF="true">
+            <DEFAULT>false</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="AUTH" NAME="USER" NUM_ROW="10" SHOW_IF="USE_AUTH == 'true'">
+            <DEFAULT>"admin"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="PASSWORD" GROUP="AUTH" NAME="PASSWD" NUM_ROW="10" SHOW_IF="USE_AUTH == 'true'">
+            <DEFAULT>""</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="CONN" NAME="PROTOCOL" NUM_ROW="20" SHOW_IF="true">
+            <ITEMS DEFAULT="HTTP">
+                <ITEM NAME="HTTP" VALUE="http"/>
+                <ITEM NAME="HTTPS" VALUE="https"/>
+            </ITEMS>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="HOST" NUM_ROW="20" SHOW_IF="true">
+            <DEFAULT>"localhost"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="PORT" NUM_ROW="20" SHOW_IF="true">
+            <DEFAULT>"9200"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="TIMEOUT" NUM_ROW="20" SHOW_IF="true">
+            <DEFAULT>"10"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONFIG" NAME="BULK_COUNT" NUM_ROW="25" SHOW_IF="true">
+            <DEFAULT>"10000"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="CONFIG" NAME="ACTIVE_SHARDS" NUM_ROW="26" SHOW_IF="true">
+            <ITEMS DEFAULT="ALL">
+                <ITEM NAME="ALL" VALUE="ALL"/>
+                <ITEM NAME="ONE" VALUE="ONE"/>
+                <ITEM NAME="DEFAULT" VALUE="DEFAULT"/>
+            </ITEMS>
+        </PARAMETER>        
+        <PARAMETER FIELD="RADIO" GROUP="REQUEST_TYPE" NAME="TYPE_FLOW" NUM_ROW="50" SHOW_IF="true">
+            <DEFAULT>true</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="RADIO" GROUP="REQUEST_TYPE" NAME="TYPE_BOX" NUM_ROW="50" SHOW_IF="true">
+            <DEFAULT>false</DEFAULT>
+        </PARAMETER>        
+        <!-- 
+        <PARAMETER FIELD="TEXT" GROUP="CONFIG" NAME="FLUSH_TIMEOUT" NUM_ROW="51" SHOW_IF="true">
+            <DEFAULT>"1000"</DEFAULT>
+        </PARAMETER>
+         -->
+        <PARAMETER FIELD="COLUMN_LIST" GROUP="REQUEST_TYPE" NAME="TYPE" NUM_ROW="51" SHOW_IF="TYPE_FLOW == 'true'">
+        	<ITEMS DEFAULT="type"/>
+        </PARAMETER>
+        <PARAMETER FIELD="COLUMN_LIST" GROUP="REQUEST_TYPE" NAME="INDEX" NUM_ROW="51" SHOW_IF="TYPE_FLOW == 'true'">
+        	<ITEMS DEFAULT="index"/>
+        </PARAMETER>
+        <PARAMETER FIELD="COLUMN_LIST" GROUP="REQUEST_TYPE" NAME="ID" NUM_ROW="51" SHOW_IF="TYPE_FLOW == 'true'">
+        	<ITEMS DEFAULT="id"/>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="REQUEST_TYPE" NAME="TYPE1" NUM_ROW="51" SHOW_IF="TYPE_BOX == 'true'">
+        	<DEFAULT>simple</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="REQUEST_TYPE" NAME="INDEX1" NUM_ROW="51" SHOW_IF="TYPE_BOX == 'true'">
+        	<DEFAULT>_doc</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="REQUEST_TYPE" NAME="ID1" NUM_ROW="51" SHOW_IF="TYPE_BOX == 'true'">
+        	<DEFAULT>1</DEFAULT>
+        </PARAMETER>
+        
+
+    </PARAMETERS>
+    <ADVANCED_PARAMETERS>
+        <PARAMETER FIELD="CHECK" NAME="DIE_ON_ERROR" NUM_ROW="1" SHOW_IF="true">
+            <DEFAULT>false</DEFAULT>
+        </PARAMETER>
+    </ADVANCED_PARAMETERS>
+    <CODEGENERATION>
+        <IMPORTS>
+			<IMPORT MODULE="elasticsearch-rest-high-level-client-7.5.1.jar" NAME="elasticsearch-rest-high-level-client-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="elasticsearch-7.5.1.jar" NAME="elasticsearch-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="elasticsearch-core-7.5.1.jar" NAME="elasticsearch-core-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="elasticsearch-secure-sm-7.5.1.jar" NAME="elasticsearch-secure-sm-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="elasticsearch-x-content-7.5.1.jar" NAME="elasticsearch-x-content-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="snakeyaml-1.17.jar" NAME="snakeyaml-1.17" REQUIRED="true"/>
+			<IMPORT MODULE="jackson-core-2.8.11.jar" NAME="jackson-core-2.8.11" REQUIRED="true"/>
+			<IMPORT MODULE="jackson-dataformat-smile-2.8.11.jar" NAME="jackson-dataformat-smile-2.8.11" REQUIRED="true"/>
+			<IMPORT MODULE="jackson-dataformat-yaml-2.8.11.jar" NAME="jackson-dataformat-yaml-2.8.11" REQUIRED="true"/>
+			<IMPORT MODULE="jackson-dataformat-cbor-2.8.11.jar" NAME="jackson-dataformat-cbor-2.8.11" REQUIRED="true"/>
+			<IMPORT MODULE="elasticsearch-geo-7.5.1.jar" NAME="elasticsearch-geo-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-core-8.3.0.jar" NAME="lucene-core-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-analyzers-common-8.3.0.jar" NAME="lucene-analyzers-common-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-backward-codecs-8.3.0.jar" NAME="lucene-backward-codecs-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-grouping-8.3.0.jar" NAME="lucene-grouping-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-highlighter-8.3.0.jar" NAME="lucene-highlighter-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-join-8.3.0.jar" NAME="lucene-join-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-memory-8.3.0.jar" NAME="lucene-memory-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-misc-8.3.0.jar" NAME="lucene-misc-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-queries-8.3.0.jar" NAME="lucene-queries-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-queryparser-8.3.0.jar" NAME="lucene-queryparser-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-sandbox-8.3.0.jar" NAME="lucene-sandbox-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-spatial-8.3.0.jar" NAME="lucene-spatial-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-spatial-extras-8.3.0.jar" NAME="lucene-spatial-extras-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-spatial3d-8.3.0.jar" NAME="lucene-spatial3d-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="lucene-suggest-8.3.0.jar" NAME="lucene-suggest-8.3.0" REQUIRED="true"/>
+			<IMPORT MODULE="elasticsearch-cli-7.5.1.jar" NAME="elasticsearch-cli-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="jopt-simple-5.0.2.jar" NAME="jopt-simple-5.0.2" REQUIRED="true"/>
+			<IMPORT MODULE="hppc-0.8.1.jar" NAME="hppc-0.8.1" REQUIRED="true"/>
+			<IMPORT MODULE="joda-time-2.10.3.jar" NAME="joda-time-2.10.3" REQUIRED="true"/>
+			<IMPORT MODULE="t-digest-3.2.jar" NAME="t-digest-3.2" REQUIRED="true"/>
+			<IMPORT MODULE="HdrHistogram-2.1.9.jar" NAME="HdrHistogram-2.1.9" REQUIRED="true"/>
+			<IMPORT MODULE="jna-4.5.1.jar" NAME="jna-4.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="elasticsearch-rest-client-7.5.1.jar" NAME="elasticsearch-rest-client-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="httpclient-4.5.10.jar" NAME="httpclient-4.5.10" REQUIRED="true"/>
+			<IMPORT MODULE="httpcore-4.4.12.jar" NAME="httpcore-4.4.12" REQUIRED="true"/>
+			<IMPORT MODULE="httpasyncclient-4.1.4.jar" NAME="httpasyncclient-4.1.4" REQUIRED="true"/>
+			<IMPORT MODULE="httpcore-nio-4.4.12.jar" NAME="httpcore-nio-4.4.12" REQUIRED="true"/>
+			<IMPORT MODULE="commons-codec-1.11.jar" NAME="commons-codec-1.11" REQUIRED="true"/>
+			<IMPORT MODULE="commons-logging-1.1.3.jar" NAME="commons-logging-1.1.3" REQUIRED="true"/>
+			<IMPORT MODULE="mapper-extras-client-7.5.1.jar" NAME="mapper-extras-client-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="parent-join-client-7.5.1.jar" NAME="parent-join-client-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="aggs-matrix-stats-client-7.5.1.jar" NAME="aggs-matrix-stats-client-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="rank-eval-client-7.5.1.jar" NAME="rank-eval-client-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="lang-mustache-client-7.5.1.jar" NAME="lang-mustache-client-7.5.1" REQUIRED="true"/>
+			<IMPORT MODULE="gson-2.8.6.jar" NAME="gson-2.8.6" REQUIRED="true"/>
+			<IMPORT MODULE="log4j-to-slf4j-2.8.2.jar" NAME="log4j-to-slf4j-2.8.2" REQUIRED="true"/>
+			<IMPORT MODULE="slf4j-api-1.7.24.jar" NAME="slf4j-api-1.7.24" REQUIRED="true"/>
+			<IMPORT MODULE="log4j-api-2.8.2.jar" NAME="log4j-api-2.8.2" REQUIRED="true"/>
+			<IMPORT MODULE="commons-io-2.6.jar" NAME="commons-io-2.6" REQUIRED="true"/>
+        </IMPORTS>
+    </CODEGENERATION>
+    
+    <RETURNS>
+        <RETURN AVAILABILITY="AFTER" NAME="NB_LINE" TYPE="id_Integer"/>
+        <RETURN AVAILABILITY="AFTER" NAME="RESPONSE" TYPE="id_List"/>
+    </RETURNS>
+</COMPONENT>

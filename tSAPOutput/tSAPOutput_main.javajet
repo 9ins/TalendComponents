@@ -1,0 +1,369 @@
+<%@ jet
+	imports="
+	java.util.ArrayList
+	java.util.HashMap
+	java.util.List
+	java.util.Map
+	
+	org.talend.core.model.metadata.IMetadataColumn
+	org.talend.core.model.metadata.IMetadataTable
+	org.talend.core.model.metadata.types.JavaTypesManager
+	org.talend.core.model.process.ElementParameterParser
+	org.talend.core.model.process.IConnection
+	org.talend.core.model.process.IConnectionCategory
+	org.talend.core.model.process.INode
+	org.talend.designer.codegen.config.CodeGeneratorArgument
+	org.talend.core.model.metadata.types.JavaType
+	"
+%>
+
+<%
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode)codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+%>
+	
+<%	
+	IConnection firstDataConn = null;
+	List<IMetadataColumn> firstColumnList = null;
+
+	//1. get first DATA Link
+	List< ? extends IConnection> conns = node.getIncomingConnections();	
+	if(conns != null && conns.size() > 0){
+		for(IConnection conn : conns){
+			if (conn.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
+				firstDataConn = conn;
+				break;
+			}
+		}
+	}
+
+	//2. get first columnList (with real columns data) 	
+	List<IMetadataTable> metadatas = node.getMetadataList();
+	IMetadataTable metadata = null;
+	if ( metadatas != null && metadatas.size() > 0 ) {
+		metadata = metadatas.get(0);
+		if(metadata != null){
+			firstColumnList = metadata.getListColumns(); 
+			if ( firstColumnList == null || firstColumnList.size() == 0 ) {
+				firstColumnList = null;
+			}
+		}
+	}
+	
+	//3. check the config Link and Schema
+	if(firstDataConn == null || firstColumnList == null)
+	{
+		return "";
+	}
+%>
+
+<%
+            //this is a inner class to process the schema issue.
+            class SchemaUtil {
+				
+				public boolean isList(String columnName,IMetadataTable metadata){
+					List<IMetadataColumn> columns = metadata.getListColumns();
+            		int sizeColumns = columns.size();
+            		for (int i = 0; i < sizeColumns; i++) {
+                		IMetadataColumn column = columns.get(i);
+                		JavaType javaType = JavaTypesManager.getJavaTypeFromId(column.getTalendType());
+                		if(columnName.equals(column.getLabel())&&javaType == JavaTypesManager.LIST){
+                			return true;
+                		}
+                	}
+                	return false;
+				}
+				
+                // keep all schema configuration
+                private List<SAPSchema> sapSchemaList = new ArrayList<SAPSchema>();
+
+                class SAPSchema {
+
+                    public String getSchemaName() {
+                        return schemaName;
+                    }
+
+                    public String getSapParameterType() {
+                        return sapParameterType;
+                    }
+
+                    public String getSapTableName() {
+                        return sapTableName;
+                    }
+
+                    public String getSapParameterName() {
+                        return sapParameterName;
+                    }
+
+                    public String getSapParameterValue() {
+                        return sapParameterValue;
+                    }
+
+                    String schemaName;
+
+                    String sapParameterType;
+
+                    String sapTableName;
+
+                    String sapParameterName;
+
+                    String sapParameterValue;
+
+                    public SAPSchema(String schemaName, String sapParameterType, String sapTableName, String sapParameterName,
+                            String sapParameterValue) {
+
+                        this.schemaName = schemaName;
+
+                        this.sapParameterType = sapParameterType;
+
+                        this.sapTableName = sapTableName;
+
+                        this.sapParameterName = sapParameterName;
+
+                        this.sapParameterValue = sapParameterValue;
+                    }
+
+                }
+
+                // step_1
+                public void addSAPSchema(String schemaName, String sapParameterType, String sapTableName,
+                        String sapParameterName, String sapParameterValue) {
+                    SAPSchema newSAPSchema = new SAPSchema(schemaName, sapParameterType, sapTableName, sapParameterName,
+                            sapParameterValue);
+
+                    // process List
+                    sapSchemaList.add(newSAPSchema);
+                }
+
+                // step_2
+                // <tableName, sameType_sameTable_schema>
+                public Map<String, List<SAPSchema>> extractSchemaMap(String sapParameterType) {
+                    Map<String, List<SAPSchema>> map = new HashMap<String, List<SAPSchema>>();
+                    for (SAPSchema sapSchema : sapSchemaList) {
+
+                        // filter the sapParameterType first
+                        if (!sapSchema.getSapParameterType().equals(sapParameterType)) {
+                            continue;
+                        }
+
+                        String key = sapSchema.getSapTableName();
+                        List<SAPSchema> tableNamekeyList = map.get(key);
+                        if (tableNamekeyList == null) {
+                            List<SAPSchema> newTableNamekeyList = new ArrayList<SAPSchema>();
+                            newTableNamekeyList.add(sapSchema);
+                            map.put(key, newTableNamekeyList);
+
+                        } else {
+                            tableNamekeyList.add(sapSchema);
+                        }
+                    }
+                    return map;
+                }
+            }
+            
+            //intial the schema in buffer
+            SchemaUtil schemaUtil = new SchemaUtil(); 
+            
+			List<Map<String, String>> sapMapping = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node, "__MAPPING__");            
+            
+			for(Map<String, String> configRow : sapMapping){			
+				schemaUtil.addSAPSchema(configRow.get("SCHEMA_COLUMN"), configRow.get("SAP_PARAMETER_TYPE"), configRow.get("SAP_TABLE_NAME"), configRow.get("SAP_PARAMETER_NAME"), configRow.get("SAP_PARAMETER_VALUE"));
+				if(false){
+				System.out.println(configRow.get("SCHEMA_COLUMN") + " " + configRow.get("SAP_PARAMETER_TYPE") + " " + configRow.get("SAP_TABLE_NAME") + " " + configRow.get("SAP_PARAMETER_NAME") + " " + configRow.get("SAP_PARAMETER_VALUE"));
+				}				
+			}
+%>
+<%
+boolean startIterate = false;
+String firstDataConnName = firstDataConn.getName();
+
+String client = ElementParameterParser.getValue(node, "__CLIENT__");
+String userid = ElementParameterParser.getValue(node, "__USERID__");
+String password = ElementParameterParser.getValue(node, "__PASSWORD__");
+String language = ElementParameterParser.getValue(node, "__LANGUAGE__");
+String hostname = ElementParameterParser.getValue(node, "__HOSTNAME__");
+String systemnumber = ElementParameterParser.getValue(node, "__SYSTEMNUMBER__");
+
+String functionName = ElementParameterParser.getValue(node, "__SAP_FUNCTION__");
+
+String iterate_out_type = ElementParameterParser.getValue(node, "__SAP_ITERATE_OUT_TYPE__");
+String iterate_out_tablename = ElementParameterParser.getValue(node, "__SAP_ITERATE_OUT_TABLENAME__");
+
+boolean useExistingConn = ("true").equals(ElementParameterParser.getValue(node,"__USE_EXISTING_CONNECTION__"));
+String connection = ElementParameterParser.getValue(node,"__CONNECTION__");
+String version = "sapjco.jar";
+if(useExistingConn){
+    List<? extends INode> nodes = node.getProcess().getGeneratingNodes();
+    for(INode targetNode : nodes){
+    	if (targetNode.getUniqueName().equals(connection)) {
+	      version = ElementParameterParser.getValue(targetNode, "__DB_VERSION__");
+	    }
+    }
+}else{
+	version = ElementParameterParser.getValue(node, "__DB_VERSION__");
+}
+%>        
+	try{
+	<%
+    /* the following is output part, it will output data to SAP. */
+    // "input_single"
+    Map<String, List<SchemaUtil.SAPSchema>> input_single_map = schemaUtil.extractSchemaMap("input_single");
+    for (String key : input_single_map.keySet()) {
+        List<SchemaUtil.SAPSchema> oneTableNamelist = input_single_map.get(key);
+        for (SchemaUtil.SAPSchema schema : oneTableNamelist) {
+		%>              
+			<%if("sapjco.jar".equals(version)){%>
+				importParameterList_<%=cid %>.setValue(<%=firstDataConnName %>.<%=schema.getSchemaName() %>, <%=schema.getSapParameterName() %>); // "input_single"--<%=schema.getSchemaName() %>
+			<%}else if("sapjco3.jar".equals(version)){%>
+				importParameterList_<%=cid %>.setValue(<%=schema.getSapParameterName() %>,<%=firstDataConnName %>.<%=schema.getSchemaName() %>); // "input_single"--<%=schema.getSchemaName() %>
+			<%}%>
+		<%
+      	}
+    }
+	%>
+
+	<%
+    // "input_structure"
+    Map<String, List<SchemaUtil.SAPSchema>> input_structure_map = schemaUtil.extractSchemaMap("input_structure");
+    for (String key : input_structure_map.keySet()) {
+	%>          
+		input_structure_<%=cid %> = importParameterList_<%=cid %>.getStructure(<%=key %>);
+		<%
+		List<SchemaUtil.SAPSchema> oneTableNamelist = input_structure_map.get(key);
+        for (SchemaUtil.SAPSchema schema : oneTableNamelist) {
+		%>              
+			<%if("sapjco.jar".equals(version)){%>
+				input_structure_<%=cid %>.setValue(<%=firstDataConnName %>.<%=schema.getSchemaName() %>, <%=schema.getSapParameterName() %>); // "input_structure"--<%=schema.getSchemaName() %>
+			<%}else if("sapjco3.jar".equals(version)){%>
+				input_structure_<%=cid %>.setValue(<%=schema.getSapParameterName() %>, <%=firstDataConnName %>.<%=schema.getSchemaName() %>); // "input_structure"--<%=schema.getSchemaName() %>
+			<%}%>
+		<%          
+		}
+	}
+	%>
+
+	<%
+    // "input_table"
+    Map<String, List<SchemaUtil.SAPSchema>> input_table_map = schemaUtil.extractSchemaMap("input_table");
+    if(input_table_map.size()>0){
+	%>
+		<%
+        for (String key : input_table_map.keySet()) {
+		%>          
+			input_table_<%=cid %> = importParameterList_<%=cid %>.getTable(<%=key %>);
+			//if(input_table_<%=cid %>.getNumRows() > 0){
+				//input_table_<%=cid %>.deleteAllRows();
+			//}
+	        input_table_<%=cid %>.appendRow();
+			<%
+			List<SchemaUtil.SAPSchema> oneTableNamelist = input_table_map.get(key);
+	        for (SchemaUtil.SAPSchema schema : oneTableNamelist) {
+	        	if(schemaUtil.isList(schema.getSchemaName(),metadata)){
+				%>	
+					if(input_table_<%=cid %>.getNumRows() < <%=firstDataConnName %>.<%=schema.getSchemaName() %>.size()){
+						input_table_<%=cid %>.appendRows(<%=firstDataConnName %>.<%=schema.getSchemaName() %>.size() - input_table_<%=cid %>.getNumRows());
+					}
+					//input_table_<%=cid %>.firstRow();
+					for(int i = 0; i < <%=firstDataConnName %>.<%=schema.getSchemaName() %>.size(); i++){
+						<%if("sapjco.jar".equals(version)){%>
+							input_table_<%=cid %>.setValue(<%=firstDataConnName %>.<%=schema.getSchemaName() %>.get(i).toString(), <%=schema.getSapParameterName() %>); // "input_table"--<%=schema.getSchemaName() %>
+						<%}else if("sapjco3.jar".equals(version)){%>
+							input_table_<%=cid %>.setValue(<%=schema.getSapParameterName() %>, <%=firstDataConnName %>.<%=schema.getSchemaName() %>.get(i).toString()); // "input_table"--<%=schema.getSchemaName() %>
+						<%}%>
+						input_table_<%=cid %>.nextRow();
+					}
+				<%
+	            }else{
+				%>
+					//input_table_<%=cid %>.firstRow();
+					<%if("sapjco.jar".equals(version)){%>
+						input_table_<%=cid %>.setValue(<%=firstDataConnName %>.<%=schema.getSchemaName() %>, <%=schema.getSapParameterName() %>); // "input_table"--<%=schema.getSchemaName() %>
+					<%}else if("sapjco3.jar".equals(version)){%>
+						input_table_<%=cid %>.setValue(<%=schema.getSapParameterName() %>,<%=firstDataConnName %>.<%=schema.getSchemaName() %>); // "input_table"--<%=schema.getSchemaName() %>
+					<%}%>
+				<%
+	            }
+				%>              
+			
+			<%
+			}
+		}
+	}
+	%>        
+		
+	<%       
+    // "table_input"
+    Map<String, List<SchemaUtil.SAPSchema>> table_input_map = schemaUtil.extractSchemaMap("table_input");
+    if(table_input_map.size()>0){
+	%>
+		<%
+        for (String key : table_input_map.keySet()) {
+		%>          
+			table_input_<%=cid %> = tableParameterList_<%=cid %>.getTable(<%=key %>);
+			//if(table_input_<%=cid %>.getNumRows() > 0){
+				//table_input_<%=cid %>.deleteAllRows();
+			//}
+	        table_input_<%=cid %>.appendRow();
+			<%
+			List<SchemaUtil.SAPSchema> oneTableNamelist = table_input_map.get(key);
+            for (SchemaUtil.SAPSchema schema : oneTableNamelist) {
+            	if(schemaUtil.isList(schema.getSchemaName(),metadata)){
+				%>
+					if(table_input_<%=cid %>.getNumRows() < <%=firstDataConnName %>.<%=schema.getSchemaName() %>.size()){
+						table_input_<%=cid %>.appendRows(<%=firstDataConnName %>.<%=schema.getSchemaName() %>.size() - table_input_<%=cid %>.getNumRows());
+					}
+					//table_input_<%=cid %>.firstRow();
+					for(int i = 0; i < <%=firstDataConnName %>.<%=schema.getSchemaName() %>.size(); i++){
+						<%if("sapjco.jar".equals(version)){%>
+							table_input_<%=cid %>.setValue(<%=firstDataConnName %>.<%=schema.getSchemaName() %>.get(i).toString(), <%=schema.getSapParameterName() %>); // "table_input"--<%=schema.getSchemaName() %>
+						<%}else if("sapjco3.jar".equals(version)){%>
+							table_input_<%=cid %>.setValue(<%=schema.getSapParameterName() %>, <%=firstDataConnName %>.<%=schema.getSchemaName() %>.get(i).toString()); // "table_input"--<%=schema.getSchemaName() %>
+						<%}%>
+						table_input_<%=cid %>.nextRow();
+					}
+				<%
+            	}else{
+				%>
+					//table_input_<%=cid %>.firstRow();
+					<%if("sapjco.jar".equals(version)){%>
+						table_input_<%=cid %>.setValue(<%=firstDataConnName %>.<%=schema.getSchemaName() %>, <%=schema.getSapParameterName() %>); // "table_input"--<%=schema.getSchemaName() %>
+					<%}else if("sapjco3.jar".equals(version)){%>
+						table_input_<%=cid %>.setValue(<%=schema.getSapParameterName() %>, <%=firstDataConnName %>.<%=schema.getSchemaName() %>); // "table_input"--<%=schema.getSchemaName() %>
+					<%}%>			                 	
+				<%
+            	}
+			}
+        }
+	}
+	%>        
+<%if("sapjco.jar".equals(version)){%>
+	try {
+		sapCurrCount_<%=cid%>++;
+		client_<%=cid %>.execute(function_<%=cid %>);
+		if(input_table_<%=cid %> != null) {
+			input_table_<%=cid %>.deleteAllRows();
+		}
+		if(table_input_<%=cid %> != null) {
+			table_input_<%=cid %>.deleteAllRows();
+		}
+	}catch (java.lang.Exception e_<%=cid%>) {
+		com.sap.mw.jco.JCO.releaseClient(client_<%=cid %>);
+	    throw new RuntimeException(e_<%=cid%>.getMessage());
+	}	
+<%}else if("sapjco3.jar".equals(version)){%>
+	try {
+		sapCurrCount_<%=cid%>++;
+		function_<%=cid %>.execute(dest_<%=cid%>);
+		if(input_table_<%=cid %> != null) {
+			input_table_<%=cid %>.deleteAllRows();
+		}
+		if(table_input_<%=cid %> != null) {
+			table_input_<%=cid %>.deleteAllRows();
+		}		
+	}catch (java.lang.Exception e_<%=cid%>) {
+		com.sap.conn.jco.JCoContext.end(dest_<%=cid%>);
+	    throw new RuntimeException(e_<%=cid%>.getMessage());
+	}	
+<%}%>
+        

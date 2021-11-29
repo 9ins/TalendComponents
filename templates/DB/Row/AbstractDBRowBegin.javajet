@@ -1,0 +1,43 @@
+<%@ jet 
+imports="
+        org.talend.core.model.process.INode 
+        org.talend.core.model.process.ElementParameterParser 
+        org.talend.core.model.metadata.IMetadataTable 
+        org.talend.core.model.metadata.IMetadataColumn
+        org.talend.designer.codegen.config.CodeGeneratorArgument
+        org.talend.core.model.process.IConnection
+        org.talend.core.model.process.IConnectionCategory
+        org.talend.core.model.metadata.builder.database.ExtractMetaDataUtils
+        org.talend.core.model.metadata.types.JavaTypesManager
+        org.talend.core.model.metadata.types.JavaType       
+        java.util.List
+        java.util.Map
+        "
+%>
+<%
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode)codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+	String dbproperties = ElementParameterParser.getValue(node, "__PROPERTIES__");
+	boolean usePrepareStatement = "true".equals(ElementParameterParser.getValue(node,"__USE_PREPAREDSTATEMENT__"));
+	dbRowBeginUtil.beforeComponentProcess(node);
+	log4jCodeGenerateUtil = dbRowBeginUtil.log4jCodeGenerateUtil;
+%>
+	java.sql.Connection conn_<%=cid%> = null;
+	String query_<%=cid %> = "";
+	boolean whetherReject_<%=cid%> = false;
+<%
+	dbRowBeginUtil.createConnection(node);
+	dbRowBeginUtil.setCommit(node);
+
+	if (usePrepareStatement ) {
+	%>
+		java.sql.PreparedStatement pstmt_<%=cid %> = conn_<%=cid%>.prepareStatement(<%=dbRowBeginUtil.getQueryString(node)%>);	
+	<%
+	} else {
+	%>
+		java.sql.Statement stmt_<%=cid %> = conn_<%=cid %>.createStatement();
+	<%
+	}
+	dbRowBeginUtil.afterConnection(node);
+	%>

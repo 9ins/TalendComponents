@@ -1,0 +1,95 @@
+<%@ jet
+imports="
+org.talend.core.model.process.INode
+org.talend.core.model.process.ElementParameterParser
+org.talend.core.model.metadata.IMetadataTable 
+org.talend.core.model.metadata.IMetadataColumn 
+org.talend.core.model.process.IConnection
+org.talend.core.model.process.IConnectionCategory
+org.talend.designer.codegen.config.CodeGeneratorArgument
+org.talend.core.model.metadata.types.JavaTypesManager
+org.talend.core.model.metadata.types.JavaType
+java.util.*
+"
+%>
+
+<% 
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+INode node = (INode)codeGenArgument.getArgument();
+String cid = node.getUniqueName();	
+%>
+
+<%
+List<? extends IConnection> outConns = node.getOutgoingSortedConnections();
+String outConnName = null;
+boolean hasOutputSchema = false;
+if (outConns != null && outConns.size() > 0) {
+    if (outConns.get(0).getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
+        outConnName = outConns.get(0).getName();
+        hasOutputSchema = true;
+    }
+}
+%>
+
+com.chaostocosmos.designer.crawler.CrawlingEvent event_<%=cid%> = crawler_<%=cid%>.getEventQueue().remove(0);
+//System.out.println("======================= "+event_<%=cid%>.getURL());
+start_yn_millis_<%=cid%> += 1000;		
+
+
+<%
+if(outConnName != null) { //1
+	List<IMetadataTable> metaTables = node.getMetadataList();
+	if(metaTables != null && metaTables.size() > 0) { //2
+		IMetadataTable metaTable = metaTables.get(0);
+		List<IMetadataColumn> columns = metaTable.getListColumns();
+		%>
+			globalMap.put("<%=cid%>_NB_LINE", nb_line_<%=cid %>++);
+		<%
+		for(IMetadataColumn column : columns) { //3
+			String columnNm = column.getLabel();
+			if(columnNm.equals("URL")) { //4
+			%>
+				<%=outConnName%>.URL = event_<%=cid%>.getURL();
+			<%
+			} else if(columnNm.equals("KEYWORD")) {
+			%>
+				<%=outConnName%>.KEYWORD = event_<%=cid%>.getKEYWORD();
+			<%
+			} else if(columnNm.equals("MATCH")) {
+			%>
+				<%=outConnName%>.MATCH = event_<%=cid%>.getMATCH()+"";
+			<%
+			} else if(columnNm.equals("HTML")) {
+			%>
+				<%=outConnName%>.HTML = event_<%=cid%>.getHTML();
+			<%
+			} else if(columnNm.equals("TEXT")) {
+			%>
+				<%=outConnName%>.TEXT = event_<%=cid%>.getTEXT();
+			<%
+			} else if(columnNm.equals("COOKIE")) {
+			%>
+				<%=outConnName%>.COOKIE = event_<%=cid%>.getCOOKIE();			
+			<%
+			} else if(columnNm.equals("CHARSET")) {
+			%>
+				<%=outConnName%>.CHARSET = event_<%=cid%>.getCHARSET();
+			<%
+			} else if(columnNm.equals("FILENAME")) {
+			%>
+				<%=outConnName%>.FILENAME = event_<%=cid%>.getFILENAME();
+			<%
+			} else if(columnNm.equals("LAST_MODIFIED")) {
+			%>
+				<%=outConnName%>.LAST_MODIFIED = event_<%=cid%>.getLASTMODIFIED();
+			<%
+			} else if(columnNm.equals("CURRENT_DATE")) {
+			%>
+				<%=outConnName%>.CURRENT_DATE = event_<%=cid%>.getDATE();
+			<%
+			} //4
+		} //3
+	} //2
+}  //1
+%>
+

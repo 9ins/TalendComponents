@@ -1,0 +1,271 @@
+<%@ jet
+	imports="
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.process.INode
+		org.talend.core.model.process.EConnectionType
+		org.talend.core.model.process.ElementParameterParser
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.metadata.IMetadataColumn
+		org.talend.core.model.metadata.IMetadataTable
+		org.talend.core.model.process.IConnectionCategory
+		java.util.List
+		java.util.Map
+"
+%>
+<%
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode)codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+	
+	String dataAction = ElementParameterParser.getValue(node,"__DATA_ACTION__");
+
+	List<? extends IConnection> inConns = node.getIncomingConnections(EConnectionType.FLOW_MAIN);
+
+	String hashKeyName = ElementParameterParser.getValue(node, "__PARTITION_KEY__");
+	String rangeKeyName = ElementParameterParser.getValue(node, "__SORT_KEY__");
+	
+	List<Map<String, String>> nameMap = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node, "__NAME_MAPPING__");
+	
+	IConnection inConn = null;
+	IMetadataTable metadata = null;
+	
+	if(inConns!=null && inConns.size()> 0) {
+		inConn = inConns.get(0);
+		metadata = inConn.getMetadataTable();
+	}
+
+	if (metadata!=null) {
+		List< ? extends IConnection> conns = node.getIncomingConnections();
+		for (IConnection conn : conns) {
+			if (conn.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
+				List<IMetadataColumn> columnList = metadata.getListColumns();
+				int sizeColumns = columnList.size();
+
+				if(!"INSERT".equalsIgnoreCase(dataAction)){
+				%>
+					int countKey_<%=cid%>=0;
+					int countValue_<%=cid%>=0;
+				<%
+				}
+				
+				if ("INSERT".equalsIgnoreCase(dataAction)) {
+					%>	
+					Object hashKeyValue_<%=cid%> = null;
+					Object rangeKeyValue_<%=cid%> = null;
+					item_<%=cid%> = new com.amazonaws.services.dynamodbv2.document.Item();
+					<%
+					for (int i = 0; i < sizeColumns; i++) {
+						IMetadataColumn column = columnList.get(i);
+
+						%>				
+						if (<%=conn.getName() %>.<%=column.getLabel() %> != null) {  				
+						<%
+							
+							if(column.isKey())
+							{	
+								%>							
+								if("<%=column.getOriginalDbColumnName()%>".equalsIgnoreCase(<%=hashKeyName%>))
+								{																		
+									hashKeyValue_<%=cid%> = <%=conn.getName() %>.<%=column.getLabel() %>;
+								}
+								else if(<%=rangeKeyName%>!=null && !<%=rangeKeyName%>.isEmpty() && "<%=column.getOriginalDbColumnName()%>".equalsIgnoreCase(<%=rangeKeyName%>))
+								{																		
+									rangeKeyValue_<%=cid%> = <%=conn.getName() %>.<%=column.getLabel() %>;
+								}
+								<%
+							}
+							else
+							{
+								%>
+								item_<%=cid%> = item_<%=cid%>.with("<%=column.getOriginalDbColumnName() %>", <%=conn.getName() %>.<%=column.getLabel() %>);
+							<%
+							}	
+							%>
+						}
+						
+					<%			
+					}
+					
+					%>
+					if(<%=rangeKeyName%>!=null && !<%=rangeKeyName%>.isEmpty()){					
+						item_<%=cid%> = item_<%=cid%>.withPrimaryKey(<%=hashKeyName%>, hashKeyValue_<%=cid%>, <%=rangeKeyName%>, rangeKeyValue_<%=cid%>);				
+					}
+					else{
+						item_<%=cid%> = item_<%=cid%>.withPrimaryKey(<%=hashKeyName%>, hashKeyValue_<%=cid%>);
+					}
+					putItemSpec_<%=cid%> = new com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec().withItem(item_<%=cid%>);
+                    				
+					<%
+					
+  				}
+				
+				if ("UPDATE".equalsIgnoreCase(dataAction)) {
+					%>
+					Object hashKeyValue_<%=cid%> = null;
+					Object rangeKeyValue_<%=cid%> = null;
+					
+					java.util.HashMap<String, Object> valueMap_<%=cid%> = new java.util.HashMap<String, Object>();	
+					java.util.HashMap<String,String> nameMap_<%=cid%> = new java.util.HashMap<String,String>();	
+					java.util.HashMap<String,String> nameMapRevert_<%=cid%> = new java.util.HashMap<String,String>();						
+					
+					<%	
+					for(Map<String,String> subNameMap : nameMap)
+					{
+						String placeholder = subNameMap.get("PLACEHOLDER");
+						String name = subNameMap.get("NAME");
+						%>
+							nameMap_<%=cid%>.put("<%=placeholder%>", "<%=name%>");
+							nameMapRevert_<%=cid%>.put("<%=name%>","<%=placeholder%>");
+						<%
+					}
+					%>
+					
+					StringBuffer updateExpressionBuffer_<%=cid%> = new StringBuffer();
+					updateExpressionBuffer_<%=cid%>.append("set ");
+					<%
+					for (int i = 0; i < sizeColumns; i++) {
+						IMetadataColumn column = columnList.get(i);
+						
+						if(column.isKey()) 
+						{		
+							%>							
+							if("<%=column.getOriginalDbColumnName()%>".equalsIgnoreCase(<%=hashKeyName%>))
+							{																		
+								hashKeyValue_<%=cid%> = <%=conn.getName() %>.<%=column.getLabel() %>;
+							}
+							else if(<%=rangeKeyName%>!=null && !<%=rangeKeyName%>.isEmpty() && "<%=column.getOriginalDbColumnName()%>".equalsIgnoreCase(<%=rangeKeyName%>))
+							{																		
+								rangeKeyValue_<%=cid%> = <%=conn.getName() %>.<%=column.getLabel() %>;
+							}
+
+							countKey_<%=cid%>++;
+							<%
+						
+						}
+						else
+						{
+							%>
+							if(countValue_<%=cid%> > 0)
+							{
+								updateExpressionBuffer_<%=cid%>.append(", ");
+							}
+							
+							if(nameMapRevert_<%=cid%>.containsKey("<%=column.getOriginalDbColumnName() %>")){
+								updateExpressionBuffer_<%=cid%>.append(nameMapRevert_<%=cid%>.get("<%=column.getOriginalDbColumnName() %>"));
+								updateExpressionBuffer_<%=cid%>.append(" =:<%=column.getOriginalDbColumnName() %>");
+							}else{
+								updateExpressionBuffer_<%=cid%>.append("<%=column.getOriginalDbColumnName() %>  =:<%=column.getOriginalDbColumnName() %>");
+							}
+																			
+							valueMap_<%=cid%>.put(":<%=column.getOriginalDbColumnName() %>", <%=conn.getName() %>.<%=column.getLabel() %>);
+							countValue_<%=cid%>++;
+							
+						<%
+						}				
+					}
+			
+					%>
+					if(<%=rangeKeyName%>!=null && !<%=rangeKeyName%>.isEmpty()){					
+						updateItemSpec_<%=cid%> = updateItemSpec_<%=cid%>.withPrimaryKey(<%=hashKeyName%>, hashKeyValue_<%=cid%>, <%=rangeKeyName%>, rangeKeyValue_<%=cid%>);				
+					}
+					else{
+						updateItemSpec_<%=cid%> = updateItemSpec_<%=cid%>.withPrimaryKey(<%=hashKeyName%>, hashKeyValue_<%=cid%>);
+					}
+					
+					updateItemSpec_<%=cid%> = updateItemSpec_<%=cid%>.withUpdateExpression(updateExpressionBuffer_<%=cid%>.toString()).withValueMap(valueMap_<%=cid%>);	
+					
+					if(nameMap_<%=cid%>.size()>0)
+					{
+						updateItemSpec_<%=cid%> = updateItemSpec_<%=cid%>.withNameMap(nameMap_<%=cid%>);
+					}
+					<%
+					
+  				}
+				
+				if ("DELETE".equalsIgnoreCase(dataAction)) {
+					%>
+					Object hashKeyValue_<%=cid%> = null;
+					Object rangeKeyValue_<%=cid%> = null;
+					
+					<%
+					for (int i = 0; i < sizeColumns; i++) {
+						IMetadataColumn column = columnList.get(i);
+
+						%>
+						if (<%=conn.getName() %>.<%=column.getLabel() %> != null) {
+   
+						<%
+						
+							if(column.isKey()) 
+							{	
+								%>							
+								if("<%=column.getOriginalDbColumnName()%>".equalsIgnoreCase(<%=hashKeyName%>))
+								{																		
+									hashKeyValue_<%=cid%> = <%=conn.getName() %>.<%=column.getLabel() %>;
+								}
+								else if(<%=rangeKeyName%>!=null && !<%=rangeKeyName%>.isEmpty() && "<%=column.getOriginalDbColumnName()%>".equalsIgnoreCase(<%=rangeKeyName%>))
+								{																		
+									rangeKeyValue_<%=cid%> = <%=conn.getName() %>.<%=column.getLabel() %>;
+								}
+
+								countKey_<%=cid%>++;
+								<%
+							
+							}
+							%>
+
+						}
+						
+						
+					<%			
+					}
+					%>
+					if(<%=rangeKeyName%>!=null && !<%=rangeKeyName%>.isEmpty()){					
+						deleteItemSpec_<%=cid%> = deleteItemSpec_<%=cid%>.withPrimaryKey(<%=hashKeyName%>, hashKeyValue_<%=cid%>, <%=rangeKeyName%>, rangeKeyValue_<%=cid%>);				
+					}
+					else{
+						deleteItemSpec_<%=cid%> = deleteItemSpec_<%=cid%>.withPrimaryKey(<%=hashKeyName%>, hashKeyValue_<%=cid%>);
+					}
+					<%
+  				}
+				
+
+				// INSERT operation
+				if ("INSERT".equalsIgnoreCase(dataAction)) {
+				%>									
+					putItemOutcome_<%=cid%> = table_<%=cid%>.putItem(putItemSpec_<%=cid%>);
+				<%
+				// Other operations (UPDATE, UPSERT, DELETE)
+				}else{
+				%>
+
+						<%
+						// UPDATE
+						if("UPDATE".equalsIgnoreCase(dataAction)){
+							%>
+							updateItemOutcome_<%=cid%> = table_<%=cid%>.updateItem(updateItemSpec_<%=cid%>);
+						<%							
+                        // UPSERT
+						} else if("UPSERT".equalsIgnoreCase(dataAction)){
+                          
+
+                        // DELETE
+                        } else if("DELETE".equalsIgnoreCase(dataAction)){
+							%>
+							deleteItemOutcome_<%=cid%> = table_<%=cid%>.deleteItem(deleteItemSpec_<%=cid%>);
+							<%							
+						}
+						%>
+
+				<%
+				}
+
+    			%>
+				nb_line_<%=cid %> ++;
+				
+				<%
+				
+			}
+		}
+	}
+	%>

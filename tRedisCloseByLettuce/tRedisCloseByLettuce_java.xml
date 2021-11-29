@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<COMPONENT>
+    <HEADER AUTHOR="Kooin-Shin" 
+    		COMPATIBILITY="ALL" 
+    		DATA_AUTO_PROPAGATE="false" 
+    		PARTITIONING="AUTO" 
+    		PLATEFORM="ALL" 
+    		RELEASE_DATE="20191211A" 
+    		SCHEMA_AUTO_PROPAGATE="false" 
+    		SERIAL="" 
+    		STARTABLE="true" 
+    		STATUS="ALPHA" 
+    		VERSION="0.93">
+        <SIGNATURE/>
+    </HEADER>
+    <FAMILIES>
+        <FAMILY>Redis</FAMILY>
+    </FAMILIES>
+    <DOCUMENTATION>
+        <URL>http://www.innoquartz.com/</URL>
+    </DOCUMENTATION>
+    <CONNECTORS>
+        <CONNECTOR CTYPE="FLOW" MAX_INPUT="0" MAX_OUTPUT="0"/>
+        <CONNECTOR CTYPE="ITERATE" MAX_INPUT="0" MAX_OUTPUT="0"/>
+        <CONNECTOR CTYPE="SUBJOB_OK" MAX_INPUT="1"/>
+        <CONNECTOR CTYPE="COMPONENT_OK" MAX_INPUT="1"/>
+        <CONNECTOR CTYPE="RUN_IF"/>
+    </CONNECTORS>
+    <PARAMETERS>
+        <PARAMETER DYNAMIC_SETTINGS="true" FIELD="COMPONENT_LIST" FILTER="qRedisConnectionByLettuce" GROUP="CONN" NAME="CONNECTION" NUM_ROW="1" SHOW_IF="true"/>
+    </PARAMETERS>
+    <ADVANCED_PARAMETERS/>
+    <CODEGENERATION>
+        <IMPORTS>
+            <IMPORT MODULE="lettuce-core-5.2.1.RELEASE.jar" NAME="lettuce-core-5.2.1.RELEASE" REQUIRED="true"/>
+            <IMPORT MODULE="netty-all-4.1.43.Final.jar" NAME="netty-all-4.1.43.Final" REQUIRED="true"/>
+            <IMPORT MODULE="reactive-streams-1.0.3.jar" NAME="reactive-streams-1.0.3" REQUIRED="true"/>
+            <IMPORT MODULE="reactor-core-3.3.0.RELEASE.jar" NAME="reactor-core-3.3.0.RELEASE.jar" REQUIRED="true"/>
+        </IMPORTS>
+    </CODEGENERATION>
+    <RETURNS/>
+</COMPONENT>

@@ -1,0 +1,478 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.AbstractNode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable  
+		org.talend.core.model.metadata.IMetadataColumn  
+		org.talend.core.model.process.IConnection  
+		org.talend.core.model.process.IConnectionCategory 
+		org.talend.designer.codegen.config.CodeGeneratorArgument  
+		org.talend.core.model.metadata.types.JavaTypesManager  
+		org.talend.core.model.metadata.types.JavaType 
+		java.lang.management.ManagementFactory 
+		javax.management.AttributeNotFoundException 
+		javax.management.InstanceNotFoundException 
+		javax.management.MBeanException 
+		javax.management.MBeanServer 
+		javax.management.MalformedObjectNameException
+		javax.management.ObjectName
+		javax.management.ReflectionException
+		java.util.*
+	" 
+%>
+<%
+    abstract class ANodeInfo {    
+    	public List<INode> getNodes(List<INode> nodes, INode sNode) {
+    		nodes.add(sNode);
+    		List< ? extends IConnection> inConns = sNode.getOutgoingConnections();
+    		if(inConns == null || inConns.size() == 0) {
+    			return nodes;
+    		}
+    		for(IConnection conn : inConns) {
+    			INode node = conn.getTarget();
+    			if(node != null) {
+    				return getNodes(nodes, node);
+    			} else {
+    				return nodes;
+    			}
+	    	}
+	    	return nodes;
+    	}
+    	
+    	public INode getStartNode(INode baseNode) {
+    		if(baseNode.isStart()) {
+    			return baseNode;
+    		}
+    		List< ? extends IConnection> inConns = baseNode.getIncomingConnections();
+    		IConnection conn = inConns.get(0);
+   			return getStartNode(conn.getSource());
+    	}
+    	
+    	public String getSourceNodeName(INode node) {
+    		List< ? extends IConnection> inConns = node.getIncomingConnections();
+    		if(inConns != null && inConns.size() > 0) {
+    			return inConns.get(0).getSource().getUniqueName();
+    		}
+    		return null;
+    	} 
+    	
+    	public INode getTargetNode(INode node) {
+    		List< ? extends IConnection> conns = node.getOutgoingConnections();
+    		if(conns != null && conns.size() > 0) {
+    			return conns.get(0).getTarget();
+    		}
+    		return null;
+    	}
+    	
+    	public String getTargetNodeName(INode node) {
+    		INode tNode = getTargetNode(node);
+    		if(tNode != null) {
+    			return tNode.getUniqueName();
+    		}
+    		return null;
+    	}
+    }
+    
+    class NodeInfo extends ANodeInfo {
+    }    
+%>    
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();    
+    String cid = node.getUniqueName();
+    
+	NodeInfo nodeInfo = new NodeInfo();
+	String tId = nodeInfo.getTargetNodeName(node);
+	String sId = nodeInfo.getSourceNodeName(node);
+    
+    long    probTime 			= Long.parseLong(ElementParameterParser.getValue(node, "__PROB_TIME__").trim());
+    boolean isPrintStdOut	 	= "true".equals(ElementParameterParser.getValue(node, "__PRINT_STD_OUT__"));
+    boolean isUnitStr		 	= "true".equals(ElementParameterParser.getValue(node, "__INCLUDE_UNIT__"));
+    
+    String timeUnit				= ElementParameterParser.getValue(node, "__TIME_UNIT__");
+    String sizeUnit				= ElementParameterParser.getValue(node, "__SIZE_UNIT__");
+    String quantityUnit			= ElementParameterParser.getValue(node, "__QUANTITY_UNIT__");
+    String percentUnit			= ElementParameterParser.getValue(node, "__PERCENT_UNIT__");
+    
+    boolean isJobName		 	= "true".equals(ElementParameterParser.getValue(node, "__JOB_NAME__"));
+    boolean isStartDate 		= "true".equals(ElementParameterParser.getValue(node, "__START_DATE__"));
+    boolean isElapseTime 		= "true".equals(ElementParameterParser.getValue(node, "__ELAPSE_TIME__"));    
+    boolean isTosCount 			= "true".equals(ElementParameterParser.getValue(node, "__TOS_COUNT__"));
+    boolean isCountPerSec		= "true".equals(ElementParameterParser.getValue(node, "__COUNT_SEC__"));
+    boolean isCountAvg			= "true".equals(ElementParameterParser.getValue(node, "__COUNT_AVG__"));
+    boolean isThreadCount		= "true".equals(ElementParameterParser.getValue(node, "__COUNT_THREAD__"));
+    
+    boolean isJobHeapUsed 		= "true".equals(ElementParameterParser.getValue(node, "__JOB_HEAP_USED__"));
+    boolean isJobHeapInit 		= "true".equals(ElementParameterParser.getValue(node, "__JOB_HEAP_INIT__"));
+    boolean isJobHeapCommited 	= "true".equals(ElementParameterParser.getValue(node, "__JOB_HEAP_COMMITED__"));
+    boolean isJobHeapMax 		= "true".equals(ElementParameterParser.getValue(node, "__JOB_HEAP_MAX__"));
+    boolean isSystemFree 		= "true".equals(ElementParameterParser.getValue(node, "__SYSTEM_FREE__"));
+    boolean isSystemPhysical 	= "true".equals(ElementParameterParser.getValue(node, "__SYSTEM_PHYSICAL__"));
+    
+    boolean isJobHeapUsedAvg	= "true".equals(ElementParameterParser.getValue(node, "__JOB_HEAP_USED_AVG__"));
+    boolean isJobHeapCommittedAvg= "true".equals(ElementParameterParser.getValue(node, "__JOB_HEAP_COMMITED_AVG__"));
+    boolean isJobHeapMaxAvg 	= "true".equals(ElementParameterParser.getValue(node, "__JOB_HEAP_MAX_AVG__"));
+    boolean isSystemFreeAvg 	= "true".equals(ElementParameterParser.getValue(node, "__SYSTEM_FREE_AVG__"));
+
+    boolean isJobCpuTime 		= "true".equals(ElementParameterParser.getValue(node, "__JOB_CPU_TIME__"));
+    boolean isJobCpuLoad 		= "true".equals(ElementParameterParser.getValue(node, "__JOB_CPU_LOAD__"));
+    boolean isSystemCpuLoad 	= "true".equals(ElementParameterParser.getValue(node, "__SYSTEM_CPU_LOAD__"));
+    
+    boolean isJobCpuTimeAvg		= "true".equals(ElementParameterParser.getValue(node, "__JOB_CPU_TIME__"));
+    boolean isJobCpuLoadAvg		= "true".equals(ElementParameterParser.getValue(node, "__JOB_CPU_LOAD__"));
+    boolean isSystemCpuLoadAvg	= "true".equals(ElementParameterParser.getValue(node, "__SYSTEM_CPU_LOAD__"));
+    
+    boolean isFileOutput		= "true".equals(ElementParameterParser.getValue(node, "__FILE_OUTPUT__"));
+    boolean isOverwrite		 	= "true".equals(ElementParameterParser.getValue(node, "__OVERWRITE_FILE__"));
+    double splitSize 			= Double.parseDouble(ElementParameterParser.getValue(node, "__SPLIT_SIZE__"));
+    String  monitorFile 		= ElementParameterParser.getValue(node, "__MONITOR_FILE__");
+    
+%>
+    
+class APerformance {
+	public static final double PCT = 100d;
+	public static final long SEC = 1000000000L; //nano sec
+	public static final long KB = 1024;
+	public static final long MB = 1024*1024;
+	public static final long GB = 1024*1024*1024;
+	public static final long TB = 1024*1024*1024*1024;
+	public static final long PB = 1024*1024*1024*1024*1024;	
+	final java.util.HashMap<String, java.util.ArrayList<Double>> avgInfoMap = new java.util.HashMap<String, java.util.ArrayList<Double>>();
+	
+	APerformance() {
+		avgInfoMap.put("COUNT_AVG", new java.util.ArrayList<Double>());
+		avgInfoMap.put("HEAP_USED_AVG", new java.util.ArrayList<Double>());
+		avgInfoMap.put("HEAP_COMMITTED_AVG", new java.util.ArrayList<Double>());
+		avgInfoMap.put("HEAP_MAX_AVG", new java.util.ArrayList<Double>());
+		avgInfoMap.put("PHYSICAL_FREE_AVG", new java.util.ArrayList<Double>());
+		avgInfoMap.put("CPU_TIME_AVG", new java.util.ArrayList<Double>());
+		avgInfoMap.put("CPU_LOAD_AVG", new java.util.ArrayList<Double>());
+		avgInfoMap.put("SYSTEM_TOTAL_CPU_LOAD_AVG", new java.util.ArrayList<Double>());
+	}
+		
+	public double getPlatformMBeanAttribute(String attr, String unit) throws java.lang.Exception {
+		javax.management.MBeanServer mBeanServer = java.lang.management.ManagementFactory.getPlatformMBeanServer();
+		Object attribute = mBeanServer.getAttribute(new javax.management.ObjectName("java.lang","type","OperatingSystem"), attr);
+		if(attribute != null) {
+			double value = 0.0f;		
+			value = Double.parseDouble(attribute+"");
+			return applyUnit(value, unit);
+		}
+		return 0d;
+	}
+
+	public double applyUnit(double value, String unit) {
+		double retValue = 0d; 
+		if(unit.equalsIgnoreCase("%") || unit.equalsIgnoreCase("PC") || unit.equalsIgnoreCase("PERCENT")) {
+			retValue = Math.round(value*PCT*PCT)/PCT;
+		} else if(unit.equalsIgnoreCase("QTY")) {
+			retValue = value;
+		} else if(unit.equalsIgnoreCase("NO")) {
+			retValue = value;
+		} else if(unit.equalsIgnoreCase("B")) {
+			retValue = value;
+		} else if(unit.equalsIgnoreCase("KB")) {
+			retValue = Math.round(value/KB*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("MB")) {
+			retValue = Math.round(value/MB*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("GB")) {
+			retValue = Math.round(value/GB*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("TB")) {
+			retValue = Math.round(value/TB*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("PB")) {
+			retValue = Math.round(value/PB*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("NS")) {
+			retValue = Math.round(value/1000000000d*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("MS")) {
+			retValue = Math.round(value/1000000d*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("ML")) {
+			retValue = Math.round(value/1000d*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("SEC")) {
+			retValue = value;
+		} else if(unit.equalsIgnoreCase("MIN")) {
+			retValue = Math.round(value/60d*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("HR")) {
+			retValue = Math.round(value/60d/60d*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("DY")) {
+			retValue = Math.round(value/60d/60d/24d*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("WK")) {
+			retValue = Math.round(value/60d/60d/24d/7d*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("MO")) {
+			retValue = Math.round(value/60d/60d/24d/7d/30d*1000d)/1000d;
+		} else if(unit.equalsIgnoreCase("YR")) {
+			retValue = Math.round(value/60d/60d/24d/7d/30d/365d*1000d)/1000d;
+		} else {
+			throw new IllegalArgumentException("UNIT param is wrong value : "+unit);
+		}
+		retValue = (retValue < 0)?retValue*-1:retValue;
+		return retValue;
+	}
+	
+	public double getFreePhysicalMemorySize(String unit) throws java.lang.Exception {
+		return getPlatformMBeanAttribute("FreePhysicalMemorySize", unit);
+	}
+		
+	public double getCommittedVirtualMemorySize(String unit) throws java.lang.Exception {
+		return getPlatformMBeanAttribute("CommittedVirtualMemorySize", unit);
+	}
+	
+	public double getFreeSwapSpaceSize(String unit) throws java.lang.Exception {
+		return getPlatformMBeanAttribute("FreeSwapSpaceSize", unit);
+	}
+	
+	public double getTotalPhysicalMemorySize(String unit) throws java.lang.Exception {
+		return getPlatformMBeanAttribute("TotalPhysicalMemorySize", unit);
+	}
+	
+	public double getTotalSwapSpaceSize(String unit) throws java.lang.Exception {
+		return getPlatformMBeanAttribute("TotalSwapSpaceSize", unit);
+	}
+	
+	public double getProcessCpuLoad(String unit) throws java.lang.Exception {
+		return getPlatformMBeanAttribute("ProcessCpuLoad", unit);
+	}
+		
+	public double getProcessCpuTime(String unit) throws java.lang.Exception {
+		return getPlatformMBeanAttribute("ProcessCpuTime", unit); //nano sec 
+	}
+		
+	public double getSystemCpuLoad(String unit) throws java.lang.Exception {
+		return getPlatformMBeanAttribute("SystemCpuLoad", unit);
+	}
+		
+	public double getProcessHeapInit(String unit) {
+		long value = java.lang.management.ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getInit();
+		return applyUnit((double)value, unit);
+	}
+		
+	public double getProcessHeapUsed(String unit) {
+		long value = java.lang.management.ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
+		return applyUnit((double)value, unit);
+	}
+	
+	public double getProcessHeapCommitted(String unit) {
+		long value = java.lang.management.ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getCommitted();
+		return applyUnit((double)value, unit);		
+	}
+		
+	public double getProcessHeapMax(String unit) {
+		long value = java.lang.management.ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getMax();
+		return applyUnit((double)value, unit);		
+	}
+	
+	public int getProcessThreadCount(String unit) {
+		long value = java.lang.management.ManagementFactory.getThreadMXBean().getThreadCount();
+		return (int)applyUnit((double)value, unit); 
+	}	
+	
+	public double calAvg(String key, double value) {
+		java.util.ArrayList<Double> values = avgInfoMap.get(key);
+		values.add(value);
+		double sum = 0d;
+		int cnt = 0;
+		for(cnt=0; cnt<values.size(); cnt++) {
+			sum += values.get(cnt);
+		}
+		return Math.round(sum/cnt*1000d)/1000d;
+	}
+}
+final APerformance <%=cid%>_per = new APerformance();
+
+int <%=cid%>_COUNT = 1;
+int <%=cid%>_ITERATE_COUNT = 0;
+globalMap.put("<%=cid%>_isMonitor", true);
+globalMap.put("<%=cid%>_COUNT", <%=cid%>_COUNT);
+globalMap.put("<%=cid%>_ITERATE_COUNT", <%=cid%>_ITERATE_COUNT);
+final java.util.ArrayList<java.util.HashMap> <%=cid%>_monitorList = new java.util.ArrayList<java.util.HashMap>();
+
+java.text.SimpleDateFormat <%=cid%>_sdf = new java.text.SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+final java.util.Date <%=cid%>_startDate = new java.util.Date(); 
+final String <%=cid%>_dateStr = <%=cid%>_sdf.format(<%=cid%>_startDate);
+final java.util.Timer <%=cid%>_probeTimer = new java.util.Timer(false);
+
+<%
+String monitorConnName = null;
+List<? extends IConnection> monitorConns = node.getOutgoingConnections("MONITOR");
+if(monitorConns != null && monitorConns.size() > 0) {
+    IConnection monitorConn = monitorConns.get(0);
+    monitorConnName = monitorConn.getName();
+}
+%>
+
+class CheckTask extends java.util.TimerTask {
+
+	int <%=cid%>_logIndex = 0;
+	java.io.File <%=cid%>_log = null;
+	java.io.FileWriter <%=cid%>_fw = null;
+	
+	public CheckTask() {
+		if(<%=isOverwrite%>) {
+			<%=cid%>_log = new java.io.File(<%=monitorFile%>+"."+String.format("%02d", <%=cid%>_logIndex));
+			<%=cid%>_log.delete();
+		}
+	}	
+
+	public void run() {
+		java.util.HashMap<String, String> <%=cid%>_map = check();
+		if(<%=cid%>_map != null) {
+			<%=cid%>_monitorList.add(<%=cid%>_map);
+			print(<%=cid%>_map);
+		}		
+	}
+
+	public synchronized java.util.HashMap<String, String> check() {
+		try {
+			String <%=cid%>_unitStr = "";			
+			int <%=cid%>_count_iter = (int)globalMap.get("<%=cid%>_COUNT") - (int)globalMap.get("<%=cid%>_ITERATE_COUNT");
+			globalMap.put("<%=cid%>_ITERATE_COUNT", (int)globalMap.get("<%=cid%>_COUNT"));
+			//System.out.println("count per iter : "+<%=cid%>_count_iter);
+
+			java.util.HashMap<String, String> <%=cid%>_monitorMap = new java.util.LinkedHashMap<String, String>();
+			double <%=cid%>_elapse = <%=cid%>_per.applyUnit((new java.util.Date().getTime()-<%=cid%>_startDate.getTime())/1000d, "<%=timeUnit%>");
+			double <%=cid%>_countPerSec = <%=cid%>_per.applyUnit(<%=cid%>_count_iter/<%=probTime%>d, "<%=quantityUnit%>");
+			double <%=cid%>_countAvg = <%=cid%>_per.calAvg("COUNT_AVG", <%=cid%>_per.applyUnit(<%=cid%>_count_iter/<%=probTime%>d, "<%=quantityUnit%>"));
+			double <%=cid%>_heapUsed = <%=cid%>_per.getProcessHeapUsed("<%=sizeUnit%>");
+			double <%=cid%>_heapInited = <%=cid%>_per.getProcessHeapInit("<%=sizeUnit%>");
+			double <%=cid%>_heapCommitted = <%=cid%>_per.getProcessHeapCommitted("<%=sizeUnit%>");
+			double <%=cid%>_heapMax = <%=cid%>_per.getProcessHeapMax("<%=sizeUnit%>");
+			double <%=cid%>_sysFree = <%=cid%>_per.getFreePhysicalMemorySize("<%=sizeUnit%>");
+			double <%=cid%>_sysPhy = <%=cid%>_per.getTotalPhysicalMemorySize("<%=sizeUnit%>");
+			double <%=cid%>_heapUsedAvg = <%=cid%>_per.calAvg("HEAP_USED_AVG", <%=cid%>_heapUsed);
+			double <%=cid%>_heapCommittedAvg = <%=cid%>_per.calAvg("HEAP_COMMITTED_AVG", <%=cid%>_heapCommitted);
+			double <%=cid%>_heapMaxAvg = <%=cid%>_per.calAvg("HEAP_MAX_AVG", <%=cid%>_heapMax);
+			double <%=cid%>_systemFreeAvg = <%=cid%>_per.calAvg("PHYSICAL_FREE_AVG", <%=cid%>_sysFree);
+			double <%=cid%>_cpuTime = <%=cid%>_per.getProcessCpuTime("ns");
+			double <%=cid%>_cpuLoad = <%=cid%>_per.getProcessCpuLoad("<%=percentUnit%>");
+			double <%=cid%>_sysCpuLoad = <%=cid%>_per.getSystemCpuLoad("<%=percentUnit%>");
+			double <%=cid%>_cpuTimeAvg = <%=cid%>_per.calAvg("CPU_TIME_AVG", <%=cid%>_cpuTime);
+			double <%=cid%>_cpuLoadAvg = <%=cid%>_per.calAvg("CPU_LOAD_AVG", <%=cid%>_cpuLoad);
+			double <%=cid%>_systemLoadAvg = <%=cid%>_per.calAvg("SYSTEM_TOTAL_CPU_LOAD_AVG", <%=cid%>_sysCpuLoad);
+			double <%=cid%>_processThreadCount = <%=cid%>_per.getProcessThreadCount("<%=quantityUnit%>");			
+			
+			if(<%=isJobName%>) {
+				<%=cid%>_monitorMap.put("JOB", jobName);
+			} 
+			if(<%=isStartDate%>) {
+				<%=cid%>_monitorMap.put("START_DATE", <%=cid%>_dateStr);
+			}
+			if(<%=isElapseTime%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=timeUnit%>":"";
+				<%=cid%>_monitorMap.put("ELAPSE_TIME", <%=cid%>_elapse+<%=cid%>_unitStr);
+			}
+			if(<%=isTosCount%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=quantityUnit%>":"";
+				<%=cid%>_monitorMap.put("COUNT", globalMap.get("<%=cid%>_COUNT")+<%=cid%>_unitStr); 
+			}
+			if(<%=isCountPerSec%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=quantityUnit%>":"";
+				<%=cid%>_monitorMap.put("COUNT_PER_SEC", <%=cid%>_countPerSec+<%=cid%>_unitStr);
+			}
+			if(<%=isCountAvg%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=quantityUnit%>":"";
+				<%=cid%>_monitorMap.put("COUNT_AVG", <%=cid%>_countAvg+<%=cid%>_unitStr);
+			}
+			if(<%=isThreadCount%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=quantityUnit%>":"";
+				<%=cid%>_monitorMap.put("COUNT_THREAD", <%=cid%>_processThreadCount+<%=cid%>_unitStr);				
+			}				
+			if(<%=isJobHeapUsed%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("HEAP_USED", <%=cid%>_heapUsed+<%=cid%>_unitStr); 
+			}
+			if(<%=isJobHeapInit%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("HEAP_INIT", <%=cid%>_heapInited+<%=cid%>_unitStr); 
+			}
+			if(<%=isJobHeapCommited%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("HEAP_COMMITTED", <%=cid%>_heapCommitted+<%=cid%>_unitStr); 
+			}
+			if(<%=isJobHeapMax%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("HEAP_MAX", <%=cid%>_heapMax+<%=cid%>_unitStr); 
+			}
+			if(<%=isSystemFree%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("PHYSICAL_FREE", <%=cid%>_sysFree+<%=cid%>_unitStr); 			
+			}
+			if(<%=isSystemPhysical%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("PHYSICAL_TOTAL", <%=cid%>_sysPhy+<%=cid%>_unitStr); 
+			}
+			if(<%=isJobHeapUsedAvg%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("HEAP_USED_AVG", <%=cid%>_heapUsedAvg+<%=cid%>_unitStr); 
+			}
+			if(<%=isJobHeapCommittedAvg%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("HEAP_COMMITTED_AVG", <%=cid%>_heapCommittedAvg+<%=cid%>_unitStr); 
+			}
+			if(<%=isJobHeapMaxAvg%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("HEAP_MAX_AVG", <%=cid%>_heapMaxAvg+<%=cid%>_unitStr); 
+			}
+			if(<%=isSystemFreeAvg%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=sizeUnit%>":"";
+				<%=cid%>_monitorMap.put("PHYSICAL_FREE_AVG", <%=cid%>_systemFreeAvg+<%=cid%>_unitStr); 
+			}			
+			if(<%=isJobCpuTime%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" ns":"";
+				<%=cid%>_monitorMap.put("CPU_TIME", <%=cid%>_cpuTime+<%=cid%>_unitStr); 
+			}
+			if(<%=isJobCpuLoad%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=percentUnit%>":"";
+				<%=cid%>_monitorMap.put("CPU_LOAD", <%=cid%>_cpuLoad+<%=cid%>_unitStr); 
+			}
+			if(<%=isSystemCpuLoad%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=percentUnit%>":"";
+				<%=cid%>_monitorMap.put("SYSTEM_TOTAL_CPU_LOAD", <%=cid%>_sysCpuLoad+<%=cid%>_unitStr); 
+			}
+			if(<%=isJobCpuTimeAvg%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" ns":"";
+				<%=cid%>_monitorMap.put("CPU_TIME_AVG", <%=cid%>_cpuTimeAvg+<%=cid%>_unitStr);
+			}
+			if(<%=isJobCpuLoadAvg%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=percentUnit%>":"";
+				<%=cid%>_monitorMap.put("CPU_LOAD_AVG", <%=cid%>_cpuLoadAvg+<%=cid%>_unitStr);
+			}
+			if(<%=isSystemCpuLoadAvg%>) {
+				<%=cid%>_unitStr = (<%=isUnitStr%>)?" <%=percentUnit%>":"";
+				<%=cid%>_monitorMap.put("SYSTEM_TOTAL_CPU_LOAD_AVG", <%=cid%>_systemLoadAvg+<%=cid%>_unitStr);
+			}
+			return <%=cid%>_monitorMap;
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public void print(java.util.HashMap<String, String> map) {
+		StringBuffer sb = new StringBuffer();		
+		for (java.util.Map.Entry<String, String> entry : map.entrySet()) {
+			String key = entry.getKey();
+			String value = entry.getValue();
+			sb.append("#"+key+"="+value+" ");					
+		}
+		if(<%=isPrintStdOut%>) {
+			System.out.println(sb.toString());
+		}
+		try {
+			if(<%=isFileOutput%> && !<%=monitorFile%>.equals("")) {
+				<%=cid%>_log = new java.io.File(<%=monitorFile%>+"."+String.format("%02d", <%=cid%>_logIndex));
+				if(<%=cid%>_log.length() > <%=splitSize%>*1024*1024) {
+					<%=cid%>_logIndex++;
+				}
+				<%=cid%>_fw = new java.io.FileWriter(<%=cid%>_log, true);
+				<%=cid%>_fw.write(sb.toString()+System.getProperty("line.separator"));
+				<%=cid%>_fw.close();
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+	}	
+}
+CheckTask <%=cid%>_task = new CheckTask();
+<%=cid%>_probeTimer.schedule(<%=cid%>_task, 0, <%=probTime%>*(1000));
+
+

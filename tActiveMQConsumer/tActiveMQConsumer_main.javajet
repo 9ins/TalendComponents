@@ -1,0 +1,62 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    String delimiter				= ElementParameterParser.getValue(node, "__FIELD_DELIMITER__");
+    long timeout			 		= Long.parseLong(ElementParameterParser.getValue(node, "__RECEIVE_TIMEOUT__").trim());
+    boolean dieOnTimeout			= "true".equals(ElementParameterParser.getValue(node, "__DIE_NO_MESSAGE__"));
+    boolean dieOnError				= "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));   
+%>
+
+try {
+	<%=cid%>_message = <%=cid%>_consumer.receive(<%=timeout%>);
+	if(<%=cid%>_message == null) {
+		<%=cid%>_isExit = true;
+		continue;
+	}
+	if(<%=cid%>_message instanceof javax.jms.TextMessage) {
+		javax.jms.TextMessage <%=cid%>_textMessage = (javax.jms.TextMessage) <%=cid%>_message;
+		String <%=cid%>_text = <%=cid%>_textMessage.getText();
+		String[] <%=cid%>_splited = <%=cid%>_text.split(java.util.regex.Pattern.quote(<%=delimiter%>));
+		java.util.LinkedList<String> <%=cid%>_msgs = new java.util.LinkedList<String>(java.util.Arrays.asList(<%=cid%>_splited));
+		<%
+		List< ? extends IConnection> outConns = node.getOutgoingConnections("FLOW");
+		if(outConns != null && !outConns.isEmpty()) { //a
+			for(IConnection outConn : outConns) {	//b
+				String outName = outConn.getName();
+				IMetadataTable metaTable = node.getMetadataList().get(0);
+				List<IMetadataColumn> columns = metaTable.getListColumns();
+				for(int i=0; i<columns.size(); i++) { //3
+					String columnNm = columns.get(i).getLabel();
+					%>
+					<%=outName%>.<%=columnNm%> = <%=cid%>_msgs.pollFirst();
+					<%
+				} //3
+			} //b
+		} //a
+		%>
+	}
+} catch (Exception e) {
+	if(<%=dieOnError%>) {
+		throw e;
+	} else {
+		e.printStackTrace();
+	}
+}
+	

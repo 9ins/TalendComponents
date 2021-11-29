@@ -1,0 +1,136 @@
+<%@ jet 
+	imports="
+	org.talend.core.model.process.INode 
+	org.talend.core.model.process.ElementParameterParser 
+	org.talend.designer.codegen.config.CodeGeneratorArgument
+	org.talend.core.model.process.IConnection
+	org.talend.core.model.process.IConnectionCategory
+	java.util.Map
+	java.util.List
+	org.talend.core.model.metadata.IMetadataTable
+	org.talend.core.model.metadata.IMetadataColumn
+" 
+%>
+
+<%
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+INode node = (INode)codeGenArgument.getArgument();
+String cid = node.getUniqueName();
+
+String OUTPUT_TYPE = ElementParameterParser.getValue(node, "__OUTPUT_TYPE__");
+String BROKER_LIST = ElementParameterParser.getValue(node, "__BROKER_LIST__");
+String TOPIC = ElementParameterParser.getValue(node, "__TOPIC__");
+String GROUP_ID = ElementParameterParser.getValue(node, "__GROUP_ID__");
+String CONSUME_MODE = ElementParameterParser.getValue(node, "__CONSUME_MODE__");
+boolean USE_OFFSETS = "true".equals(ElementParameterParser.getValue(node, "__USE_OFFSETS__"));
+String OFFSETS = ElementParameterParser.getValue(node, "__OFFSETS__");
+String PARTITIONS = ElementParameterParser.getValue(node, "__PARTITIONS__");
+		
+String SELECT_RUN_CONDITION = ElementParameterParser.getValue(node, "__SELECT_RUN_CONDITION__");
+List<Map<String, String>> CONFIG_TABLE = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__CONFIG_TABLE__");
+String POLL_COUNT = ElementParameterParser.getValue(node, "__POLL_COUNT__");
+String RECORD_COUNT = ElementParameterParser.getValue(node, "__RECORD_COUNT__");
+String POLL_TIMEOUT = ElementParameterParser.getValue(node, "__POLL_TIMEOUT__");
+boolean USE_COMMIT = "true".equals(ElementParameterParser.getValue(node, "__USE_COMMIT__"));
+String COMMIT_TYPE = ElementParameterParser.getValue(node, "__COMMIT_TYPE__");
+String COMMIT_COUNT = ElementParameterParser.getValue(node, "__COMMIT_COUNT__");
+boolean DIE_ON_ERROR = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+		
+String type = OUTPUT_TYPE.equalsIgnoreCase("STRING") ? "String" : "byte[]";
+%>
+
+String <%=cid%>_OUTPUT_TYPE = "<%=OUTPUT_TYPE%>";
+String <%=cid%>_BROKER_LIST = <%=BROKER_LIST%>;
+String <%=cid%>_TOPIC = <%=TOPIC%>;
+String <%=cid%>_GROUP_ID = <%=GROUP_ID%>;
+int <%=cid%>_runMode = Integer.parseInt("<%=SELECT_RUN_CONDITION%>");
+boolean <%=cid%>_useAssign = "<%=CONSUME_MODE%>".equals("Assign") ?  true : false;
+boolean <%=cid%>_useOffsets = <%=USE_OFFSETS%>;
+String <%=cid%>_OFFSETS = <%=OFFSETS%>;
+String <%=cid%>_PARTITIONS = <%=PARTITIONS%>;
+
+int <%=cid%>_POLL_COUNT = Integer.parseInt(<%=POLL_COUNT%>);	
+int <%=cid%>_RECORD_COUNT = Integer.parseInt(<%=RECORD_COUNT%>);
+long <%=cid%>_POLL_TIMEOUT = Long.parseLong(<%=POLL_TIMEOUT%>);
+boolean <%=cid%>_USE_COMMIT = <%=USE_COMMIT%>;
+String <%=cid%>_COMMIT_TYPE = "<%=COMMIT_TYPE%>";
+int <%=cid%>_COMMIT_COUNT = Integer.parseInt(<%=COMMIT_COUNT%>);
+boolean <%=cid%>_DIE_ON_ERROR = <%=DIE_ON_ERROR%>;
+
+String <%=cid%>_topic = <%=cid%>_TOPIC;
+	
+java.util.Properties <%=cid%>_configs = new java.util.Properties();
+<%
+for(Map<String, String> map : CONFIG_TABLE) {
+%>
+	<%=cid%>_configs.put("<%=map.get("CONFIG_KEY")%>".trim(), <%=map.get("CONFIG_VALUE")%>.trim());
+<%
+}
+%>
+	
+<%=cid%>_configs.put("bootstrap.servers", <%=cid%>_BROKER_LIST);     // kafka server host port
+<%=cid%>_configs.put("group.id", <%=cid%>_GROUP_ID);     			 
+if(<%=cid%>_OUTPUT_TYPE.equals("STRING")) {
+    <%=cid%>_configs.put("key.deserializer", org.apache.kafka.common.serialization.StringDeserializer.class.getName());    // key deserializer
+    <%=cid%>_configs.put("value.deserializer", org.apache.kafka.common.serialization.StringDeserializer.class.getName());  // value deserializer
+} else if(<%=cid%>_OUTPUT_TYPE.equals("BYTES")) {
+	<%=cid%>_configs.put("key.deserializer", org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());    // key deserializer
+	<%=cid%>_configs.put("value.deserializer", org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());  // value deserialize
+}
+		
+org.apache.kafka.clients.consumer.KafkaConsumer<<%=type%>, <%=type%>> <%=cid%>_consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<<%=type%>, <%=type%>>(<%=cid%>_configs);    // consumer
+
+globalMap.put("<%=cid%>_CONSUMER", <%=cid%>_consumer);
+
+if(<%=cid%>_useAssign) {
+	java.util.List<org.apache.kafka.common.TopicPartition> <%=cid%>_topicPartitionList = new java.util.ArrayList<org.apache.kafka.common.TopicPartition>();
+	java.util.List<Integer> <%=cid%>_partitionList = java.util.Arrays.asList(<%=cid%>_PARTITIONS.split(",")).stream().map(s -> Integer.parseInt(s.trim())).collect(java.util.stream.Collectors.toList());
+	for(Integer partition : <%=cid%>_partitionList) {
+	   	<%=cid%>_topicPartitionList.add(new org.apache.kafka.common.TopicPartition(<%=cid%>_topic, partition));
+	}	        
+	<%=cid%>_consumer.assign(<%=cid%>_topicPartitionList);
+	if(<%=cid%>_useOffsets) {
+		java.util.List<Integer> <%=cid%>_offsets = java.util.Arrays.asList(<%=cid%>_OFFSETS.split(",")).stream().map(s -> Integer.parseInt(s.trim())).collect(java.util.stream.Collectors.toList());
+		if(<%=cid%>_partitionList.size() != <%=cid%>_offsets.size()) {
+			throw new RuntimeException("Partition count must be matched with offset count!!!");
+		} else {
+			for(int i=0; i<<%=cid%>_topicPartitionList.size(); i++) {
+				org.apache.kafka.common.TopicPartition tp = <%=cid%>_topicPartitionList.get(i);
+				int offset = <%=cid%>_offsets.get(i);
+				if(offset != -1) {
+					<%=cid%>_consumer.seek(tp, offset);
+				} else {
+					System.out.println("##### Topic: "+tp.topic()+"  Partition: "+tp.partition()+"'s offset -1 therefore it's referring to current offset of server partition #####"); 
+				}
+			}
+		}
+	}
+} else {
+   	<%=cid%>_consumer.subscribe(java.util.Arrays.asList(<%=cid%>_TOPIC));
+}
+
+java.util.Map<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> <%=cid%>_beginOffsetMap = new java.util.HashMap<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata>();
+java.util.Set<org.apache.kafka.common.TopicPartition> <%=cid%>_tp_list = <%=cid%>_consumer.assignment();
+for(org.apache.kafka.common.TopicPartition <%=cid%>_tp : <%=cid%>_tp_list) {
+	long <%=cid%>_offset = <%=cid%>_consumer.position(<%=cid%>_tp);
+	<%=cid%>_beginOffsetMap.put(<%=cid%>_tp, new org.apache.kafka.clients.consumer.OffsetAndMetadata(<%=cid%>_offset)); 
+}
+globalMap.put("<%=cid%>_OFFSET_MAP", <%=cid%>_beginOffsetMap);
+
+long <%=cid%>_recordCount = 0;
+int <%=cid%>_pollCount = 0;
+
+try  {
+
+while(<%=cid%>_consumer != null || <%=cid%>_pollCount == 0) {    
+   	if( (<%=cid%>_runMode == 1 && <%=cid%>_pollCount == <%=cid%>_POLL_COUNT) || (<%=cid%>_runMode == 2 && <%=cid%>_recordCount >= <%=cid%>_RECORD_COUNT) ) {
+   		break;
+   	}
+	org.apache.kafka.clients.consumer.ConsumerRecords<<%=type%>, <%=type%>> <%=cid%>_records = <%=cid%>_consumer.poll(java.time.Duration.ofMillis(<%=cid%>_POLL_TIMEOUT));
+	
+	globalMap.put("<%=cid%>_POLL_COUNT", ++<%=cid%>_pollCount);
+   	//System.out.println("POLLED COUNT: "+<%=cid%>_records.count());
+	for(org.apache.kafka.clients.consumer.ConsumerRecord<<%=type%>, <%=type%>> <%=cid%>_record : <%=cid%>_records) {
+        
+        
+        

@@ -1,0 +1,64 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+        
+    abstract class ANodeInfo {    
+    	public List<INode> getNodes(List<INode> nodes, INode sNode) {
+    		nodes.add(sNode);
+    		List< ? extends IConnection> inConns = sNode.getOutgoingConnections();
+    		if(inConns == null || inConns.size() == 0) {
+    			return nodes;
+    		}
+    		for(IConnection conn : inConns) {
+    			INode node = conn.getTarget();
+    			if(node != null) {
+    				return getNodes(nodes, node);
+    			} else {
+    				return nodes;
+    			}
+	    	}
+	    	return nodes;
+    	}
+    	
+    	public INode getStartNode(INode baseNode) {
+    		if(baseNode.isStart()) {
+    			return baseNode;
+    		}
+    		List< ? extends IConnection> inConns = baseNode.getIncomingConnections();
+    		IConnection conn = inConns.get(0);
+   			return getStartNode(conn.getSource());
+    	}
+    }
+    
+    class NodeInfo extends ANodeInfo {
+    }    
+    
+    NodeInfo nodeInfo = new NodeInfo();
+    
+    List< ? extends IConnection> inConns = node.getIncomingConnections();
+    for(IConnection conn : inConns) {
+    	String sNode = nodeInfo.getStartNode(conn.getSource()).getUniqueName();
+    %>
+    	Object <%=sNode%>_okComp = ok_Hash.get("<%=sNode%>");
+    	if(<%=sNode%>_okComp  == null || <%=sNode%>_okComp .equals(false)) {
+    		<%=sNode%>Process(globalMap);
+    	}
+    <%
+    }
+%>

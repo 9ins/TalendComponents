@@ -1,0 +1,94 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    String messageEncoding			= ElementParameterParser.getValue(node, "__MESSAGE_CHARSET__");
+    String delimiter				= "+"+ElementParameterParser.getValue(node, "__FIELD_DELIMITER__");
+    String exchangeName		 		= ElementParameterParser.getValue(node, "__EXCHANGE_NAME__");
+    String routingKey				= ElementParameterParser.getValue(node, "__ROUTING_KEY__");
+    boolean dieOnError				= "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+%>
+
+<%
+List< ? extends IConnection> inConns = node.getIncomingConnections();
+
+if(inConns != null && !inConns.isEmpty()) {
+	for(IConnection inConn : inConns) {
+		String inName = inConn.getName();
+		IMetadataTable metaTable = inConn.getMetadataTable();
+		//IMetadataTable metaTable = node.getMetadataTable(cid);
+		List<IMetadataColumn> columns = metaTable.getListColumns();
+		%>
+			byte[] <%=cid%>_bytes = null;
+			java.io.ByteArrayOutputStream <%=cid%>_byte_stream = new java.io.ByteArrayOutputStream();
+			java.io.ByteArrayOutputStream <%=cid%>_object_byte_stream = null;
+			java.io.ObjectOutputStream <%=cid%>_object_stream = null;
+			java.nio.ByteBuffer <%=cid%>_size_buffer = java.nio.ByteBuffer.allocate(Integer.BYTES);
+			String <%=cid%>_dateString = null;			
+		<%
+		int cnt = 1;
+		for(IMetadataColumn column : columns) { //3
+			String columnNm = column.getLabel();
+			String columnType = column.getTalendType();
+			if(columnType.equals("id_byte[]")) {
+			%>
+				<%=cid%>_bytes = <%=inName%>.<%=columnNm%> != null ? <%=inName%>.<%=columnNm%> : new byte[]{'\0'};
+				//System.out.println(<%=cid%>_bytes.length);
+			<%
+			} else if(columnType.equals("id_Date")) {
+			%>
+				if(<%=inName%>.<%=columnNm%> != null) {				
+					<%=cid%>_dateString = new java.text.SimpleDateFormat(<%=column.getPattern()%>).format(<%=inName%>.<%=columnNm%>);
+					<%=cid%>_bytes = (<%=cid%>_dateString+"").getBytes("<%=messageEncoding%>");
+				} else {
+					<%=cid%>_bytes = new byte[]{'\0'};
+				}
+			<%
+			} else if(columnType.equals("id_Object") || columnType.equals("id_List") || columnType.equals("id_Document")) {
+			%>
+				if(<%=inName%>.<%=columnNm%> != null) {
+					<%=cid%>_object_byte_stream = new java.io.ByteArrayOutputStream();
+					<%=cid%>_object_stream = new java.io.ObjectOutputStream(<%=cid%>_object_byte_stream);
+					<%=cid%>_object_stream.writeObject(<%=inName%>.<%=columnNm%>);
+					<%=cid%>_object_stream.flush();
+					<%=cid%>_object_stream.close();
+					<%=cid%>_bytes = <%=cid%>_object_byte_stream.toByteArray();
+					//System.out.println(<%=cid%>_bytes.length);
+				} else {
+					<%=cid%>_bytes = new byte[]{'\0'};
+				}
+			<%
+			} else {
+			%>
+				<%=cid%>_bytes = <%=inName%>.<%=columnNm%> != null ? <%=inName%>.<%=columnNm%>.toString().getBytes("<%=messageEncoding%>") : new byte[]{'\0'};
+			<%
+			}
+			%>
+			<%=cid%>_byte_stream.write(<%=cid%>_size_buffer.putInt(0, <%=cid%>_bytes.length).array());
+			<%=cid%>_byte_stream.write(<%=cid%>_bytes, 0, <%=cid%>_bytes.length);
+			<%	
+		}
+		%>
+		<%=cid%>_byte_stream.flush();
+		<%=cid%>_channel.basicPublish(<%=exchangeName%>, <%=routingKey%>, null, <%=cid%>_byte_stream.toByteArray());
+		<%
+	}
+}
+%>
+

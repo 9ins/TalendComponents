@@ -1,0 +1,127 @@
+		<%@ jet 
+			imports="
+			org.talend.core.model.process.INode 
+			org.talend.core.model.process.ElementParameterParser 
+			org.talend.designer.codegen.config.CodeGeneratorArgument
+			org.talend.core.model.process.IConnection
+			org.talend.core.model.process.IConnectionCategory
+			java.util.Map
+			java.util.List
+			org.talend.core.model.metadata.IMetadataTable
+			org.talend.core.model.metadata.IMetadataColumn
+		" 
+		%>
+
+		<%
+		CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+		INode node = (INode)codeGenArgument.getArgument();
+		String cid = node.getUniqueName();
+		
+		String OUTPUT_TYPE = ElementParameterParser.getValue(node, "__OUTPUT_TYPE__");
+		String BROKER_LIST = ElementParameterParser.getValue(node, "__BROKER_LIST__");
+		String TOPIC = ElementParameterParser.getValue(node, "__TOPIC__");
+		String PARTITIONS = ElementParameterParser.getValue(node, "__PARTITIONS__");
+		String GROUP_ID = ElementParameterParser.getValue(node, "__GROUP_ID__");
+		String SESSION_TIMEOUT = ElementParameterParser.getValue(node, "__SESSION_TIMEOUT__");
+		boolean COMMIT_SYNC = "true".equals(ElementParameterParser.getValue(node, "__COMMIT_SYNC__"));
+		
+		List<Map<String, String>> consumerConfig = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__CONFIG_TABLE__");
+		String START_DATE = ElementParameterParser.getValue(node, "__START_DATE__");
+		String END_DATE = ElementParameterParser.getValue(node, "__END_DATE__");
+		String POLL_TIMEOUT = ElementParameterParser.getValue(node, "__POLL_TIMEOUT__");		
+		boolean DIE_ON_ERROR = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+		
+		String type = OUTPUT_TYPE.equalsIgnoreCase("STRING") ? "String" : "byte[]";
+		%>
+		
+		String <%=cid%>_OUTPUT_TYPE = "<%=OUTPUT_TYPE%>";
+		String <%=cid%>_BROKER_LIST = <%=BROKER_LIST%>;
+		String <%=cid%>_TOPIC = <%=TOPIC%>;
+		java.util.List<Integer> <%=cid%>_PARTITIONS = java.util.Arrays.asList(<%=PARTITIONS%>.split(",")).stream().map(i -> Integer.parseInt(i.trim())).collect(java.util.stream.Collectors.toList());
+		String <%=cid%>_GROUP_ID = <%=GROUP_ID%>;
+		//int <%=cid%>_SESSION_TIMEOUT = Integer.parseInt(<%=SESSION_TIMEOUT%>);
+		boolean <%=cid%>_COMMIT_SYNC = <%=COMMIT_SYNC%>;
+		String <%=cid%>_START_DATE = <%=START_DATE%>;
+		String <%=cid%>_END_DATE = <%=END_DATE%>;
+		long <%=cid%>_POLL_TIMEOUT = Long.parseLong(<%=POLL_TIMEOUT%>);
+
+		boolean <%=cid%>_DIE_ON_ERROR = <%=DIE_ON_ERROR%>;
+
+        try {
+			String <%=cid%>_topic = <%=cid%>_TOPIC;
+						
+			java.util.Properties <%=cid%>_configs = new java.util.Properties();
+			<%
+			for(Map<String, String> map : consumerConfig) {
+			%>
+				<%=cid%>_configs.put("<%=map.get("CONFIG_KEY")%>", <%=map.get("CONFIG_VALUE")%>);
+			<%
+			}
+			%>
+			<%=cid%>_configs.put("bootstrap.servers", <%=cid%>_BROKER_LIST);     // kafka server host port
+	        <%=cid%>_configs.put("group.id", <%=cid%>_GROUP_ID);     			 // topic
+	        //<%=cid%>_configs.put("session.timeout.ms", <%=cid%>_SESSION_TIMEOUT);   // session
+	        if(<%=cid%>_OUTPUT_TYPE.equals("STRING")) {
+	            <%=cid%>_configs.put("key.deserializer", org.apache.kafka.common.serialization.StringDeserializer.class.getName());    // key deserializer
+	            <%=cid%>_configs.put("value.deserializer", org.apache.kafka.common.serialization.StringDeserializer.class.getName());  // value deserializer
+	        } else if(<%=cid%>_OUTPUT_TYPE.equals("BYTES")) {
+	            <%=cid%>_configs.put("key.deserializer", org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());    // key deserializer
+	            <%=cid%>_configs.put("value.deserializer", org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName());  // value deserializer
+	        }
+        	java.text.SimpleDateFormat <%=cid%>_sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        	<%=cid%>_START_DATE = <%=cid%>_START_DATE.equals("") ? <%=cid%>_sdf.format(new java.util.Date()) : <%=cid%>_START_DATE; 
+        	<%=cid%>_END_DATE = <%=cid%>_END_DATE.equals("") ? <%=cid%>_sdf.format(new java.util.Date()) : <%=cid%>_END_DATE;
+        	long <%=cid%>_startDateMillis = <%=cid%>_sdf.parse(<%=cid%>_START_DATE).getTime();
+        	long <%=cid%>_endDateMillis = <%=cid%>_sdf.parse(<%=cid%>_END_DATE).getTime();
+        	
+        	if(<%=cid%>_startDateMillis >= <%=cid%>_endDateMillis) {
+        		throw new RuntimeException("Start date must be set earlier then end date.");
+        	}
+	
+	        org.apache.kafka.clients.consumer.KafkaConsumer<<%=type%>, <%=type%>> <%=cid%>_consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<<%=type%>, <%=type%>>(<%=cid%>_configs);    // consumer
+	        
+	        java.util.Map<org.apache.kafka.common.TopicPartition, Long> <%=cid%>_startPartitionMap = new java.util.HashMap<org.apache.kafka.common.TopicPartition, Long>();
+	        java.util.Map<org.apache.kafka.common.TopicPartition, Long> <%=cid%>_endPartitionMap = new java.util.HashMap<org.apache.kafka.common.TopicPartition, Long>();
+	        java.util.Map<org.apache.kafka.common.TopicPartition, Boolean> <%=cid%>_finishMap = new java.util.HashMap<org.apache.kafka.common.TopicPartition, Boolean>(); 
+	        java.util.List<org.apache.kafka.common.TopicPartition> <%=cid%>_topicPartitionList = new java.util.ArrayList<org.apache.kafka.common.TopicPartition>();
+	        for(Integer <%=cid%>_partition : <%=cid%>_PARTITIONS) {
+            	<%=cid%>_startPartitionMap.put(new org.apache.kafka.common.TopicPartition(<%=cid%>_topic, <%=cid%>_partition), <%=cid%>_startDateMillis);
+            	<%=cid%>_endPartitionMap.put(new org.apache.kafka.common.TopicPartition(<%=cid%>_topic, <%=cid%>_partition), <%=cid%>_endDateMillis);
+            	<%=cid%>_topicPartitionList.add(new org.apache.kafka.common.TopicPartition(<%=cid%>_topic, <%=cid%>_partition));
+            	<%=cid%>_finishMap.put(new org.apache.kafka.common.TopicPartition(<%=cid%>_topic, <%=cid%>_partition), false);	        	
+	        }
+
+	        java.util.Map<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndTimestamp> <%=cid%>_startOffsetMap = <%=cid%>_consumer.offsetsForTimes(<%=cid%>_startPartitionMap);
+	        java.util.Map<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndTimestamp> <%=cid%>_endOffsetMap = <%=cid%>_consumer.offsetsForTimes(<%=cid%>_endPartitionMap);
+	        java.util.Map<org.apache.kafka.common.TopicPartition, Long> <%=cid%>_endMap = <%=cid%>_consumer.endOffsets(<%=cid%>_endOffsetMap.keySet());
+	        for(org.apache.kafka.common.TopicPartition tp : <%=cid%>_startOffsetMap.keySet()) {
+	        	if(<%=cid%>_startOffsetMap.get(tp) == null) {
+	        		<%=cid%>_finishMap.put(tp, true);
+	        	}
+	        }
+	        for(org.apache.kafka.common.TopicPartition tp : <%=cid%>_endOffsetMap.keySet()) {
+	        	if(<%=cid%>_endOffsetMap.get(tp) == null) {
+	        		<%=cid%>_endOffsetMap.put(tp, new org.apache.kafka.clients.consumer.OffsetAndTimestamp(<%=cid%>_endMap.get(tp), <%=cid%>_endDateMillis));
+	        	}
+	        }
+	        
+	        <%=cid%>_consumer.assign(<%=cid%>_topicPartitionList);
+	        
+	        for(org.apache.kafka.common.TopicPartition <%=cid%>_tp : <%=cid%>_startOffsetMap.keySet()) {
+	        	org.apache.kafka.clients.consumer.OffsetAndTimestamp <%=cid%>_oat = <%=cid%>_startOffsetMap.get(<%=cid%>_tp);
+	        	if(<%=cid%>_oat != null) {
+	        		<%=cid%>_consumer.seek(<%=cid%>_tp, <%=cid%>_oat.offset());
+	        	}
+	        }
+	        
+	        int <%=cid%>_nbLine = 0;
+	        int <%=cid%>_blocking = 0;
+
+	        while(<%=cid%>_finishMap.values().stream().anyMatch(tf -> tf == false)) {
+	            org.apache.kafka.clients.consumer.ConsumerRecords<<%=type%>, <%=type%>> <%=cid%>_records = <%=cid%>_consumer.poll(java.time.Duration.ofMillis(<%=cid%>_POLL_TIMEOUT));
+	            if(<%=cid%>_records.isEmpty() && <%=cid%>_blocking > 3) 
+	            	break;
+	            for(org.apache.kafka.clients.consumer.ConsumerRecord<<%=type%>, <%=type%>> <%=cid%>_record : <%=cid%>_records) {
+	            	org.apache.kafka.clients.consumer.OffsetAndTimestamp <%=cid%>_ot = <%=cid%>_endOffsetMap.entrySet().stream().filter(e -> <%=cid%>_record.topic().equals(e.getKey().topic()) && <%=cid%>_record.partition() == e.getKey().partition()).findFirst().get().getValue();
+		            if(<%=cid%>_ot.offset() > <%=cid%>_record.offset()) {
+	            		

@@ -1,0 +1,64 @@
+<%@ jet
+imports="
+org.talend.core.model.metadata.IMetadataColumn
+org.talend.core.model.metadata.IMetadataTable
+org.talend.core.model.process.EConnectionType
+org.talend.core.model.process.IConnection
+org.talend.core.model.process.INode
+org.talend.core.model.metadata.types.JavaTypesManager
+org.talend.core.model.metadata.types.JavaType
+org.talend.designer.codegen.config.CodeGeneratorArgument
+java.util.List
+"
+%>
+<% 
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+INode node = (INode)codeGenArgument.getArgument();
+String cid = node.getUniqueName();	 
+List<IMetadataTable> metadatas = node.getMetadataList();
+if ((metadatas != null) && (metadatas.size() > 0)) 
+{//b
+	IMetadataTable metadata = metadatas.get(0);
+	if (metadata != null) {//a
+  		List<IMetadataColumn> columns = metadata.getListColumns();	
+  		List< ? extends IConnection> outConns = node.getOutgoingConnections();
+  			for (IConnection conn : outConns) 
+  			{ //2	
+   				if (conn.getLineStyle().equals(EConnectionType.FLOW_MAIN)||conn.getLineStyle().equals(EConnectionType.FLOW_MERGE))
+   				{ //3
+    				String outputConnName = conn.getName();
+    				%>
+				  	java.util.StringTokenizer st_<%=cid %> = new java.util.StringTokenizer(inBuffer_<%=cid %>,","); // here
+					<% 
+    				for (int i = 0; i < columns.size(); i++) 
+    				{//4
+    					IMetadataColumn column = columns.get(i);
+     					String ttg = JavaTypesManager.getTypeToGenerate(column.getTalendType(), true);
+     					%>
+     					System.out.println("<%=ttg %>");
+     					<%
+     					if(ttg.equals("String")) 
+     					{
+						%>
+							<%=outputConnName %>.<%=column.getLabel() %> = st_<%=cid %>.nextToken(); // and here
+						<%
+						} else if(ttg.equals("Integer")) {
+						%>
+							<%=outputConnName %>.<%=column.getLabel() %> = Integer.parseIng(st_<%=cid %>.nextToken());
+						<%
+						} else if(ttg.equals("Float")) {
+						%>
+							<%=outputConnName %>.<%=column.getLabel() %> = Float.parseFloat(st_<%=cid %>.nextToken());
+						<%
+						} else if(ttg.equals("java.util.Date")) {
+						%>
+							<%=outputConnName %>.<%=column.getLabel() %> = TalendDate.parseDate("yyyy-MM-dd hh:mm:ss", st_<%=cid %>.nextToken());
+						<%
+						} 
+					}//4
+				}//3
+			}//2
+	}//a
+}//b
+%>
+

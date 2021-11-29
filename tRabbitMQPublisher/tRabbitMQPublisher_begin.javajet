@@ -1,0 +1,104 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();    
+    
+    String messageEncoding			= ElementParameterParser.getValue(node, "__MESSAGE_CHARSET__");
+    boolean useFieldLengthHeader    = "true".equals(ElementParameterParser.getValue(node, "__USE_FIELD_LENGTH_HEADER__"));
+    String delimiter				= ElementParameterParser.getValue(node, "__FIELD_DELIMITER__");
+    String host 				 	= ElementParameterParser.getValue(node, "__HOST__");
+    int port				 		= Integer.parseInt(ElementParameterParser.getValue(node, "__PORT__").trim());
+    String exchangeName		 		= ElementParameterParser.getValue(node, "__EXCHANGE_NAME__");
+    String routingKey				= ElementParameterParser.getValue(node, "__ROUTING_KEY__");
+    String userName	 				= ElementParameterParser.getValue(node, "__USER_NAME__");
+    String password	 				= ElementParameterParser.getValue(node, "__USER_PASSWORD__");
+    String virtualHost	 			= ElementParameterParser.getValue(node, "__VIRTUAL_HOST__");
+    
+    boolean isCreateExchange	    = "true".equals(ElementParameterParser.getValue(node, "__DECLARE_EXCHANGE__"));
+    String exchangeType				= ElementParameterParser.getValue(node, "__EXCHANGE_TYPE__");
+    boolean isExchangeDurable	    = "true".equals(ElementParameterParser.getValue(node, "__EXCHANGE_IS_DURABLE__"));    
+    boolean isExchangeAutoDelete    = "true".equals(ElementParameterParser.getValue(node, "__EXCHANGE_IS_AUTO_DELETE__"));    
+    List<Map<String, String>> exchangeArguments = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__EXCHANGE_ARGUMENTS__");
+    
+    boolean isCreateQueue		    = "true".equals(ElementParameterParser.getValue(node, "__DECLARE_QUEUE__"));
+    boolean isQueueEmpty			= "false".equals(ElementParameterParser.getValue(node, "__IS_QUEUE_EMPTY__"));
+    String queueName				= ElementParameterParser.getValue(node, "__QUEUE_NAME__");
+    String queueExchangeName		= ElementParameterParser.getValue(node, "__QUEUE_EXCHANGE__");
+    String queueRoutingKey				= ElementParameterParser.getValue(node, "__QUEUE_ROUTING_KEY__");
+    boolean isQueueDurable 		    = "true".equals(ElementParameterParser.getValue(node, "__QUEUE_IS_DURABLE__"));    
+    boolean isQueueExclusive	    = "true".equals(ElementParameterParser.getValue(node, "__QUEUE_IS_EXCLUSIVE__"));    
+    boolean isQueueAutoDelete 	    = "true".equals(ElementParameterParser.getValue(node, "__QUEUE_IS_AUTO_DELETE__"));    
+    List<Map<String, String>> queueArguments = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__QUEUE_ARGUMENTS__");
+    boolean dieOnError				= "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+    	
+%>
+
+///////////////////////////////////////////////////////
+// Exchange arguments setting
+///////////////////////////////////////////////////////
+java.util.Map<String, Object> <%=cid%>_exchangeArguments = new java.util.HashMap<String, Object>();
+<%
+	for(java.util.Map<String, String> map : exchangeArguments)
+	{
+		String hKey = map.get("ARGUMENT_KEY");
+		String hValue = map.get("ARGUMENT_VALUE");
+%>
+		<%=cid%>_exchangeArguments.put("<%=hKey%>", "<%=hValue%>");
+<%
+	}
+%>
+
+///////////////////////////////////////////////////////
+// Queue arguments setting
+///////////////////////////////////////////////////////
+java.util.Map<String, Object> <%=cid%>_queueArguments = new java.util.HashMap<String, Object>();
+<%
+	for(java.util.Map<String, String> map : queueArguments)
+	{
+		String hKey = map.get("ARGUMENT_KEY");
+		String hValue = map.get("ARGUMENT_VALUE");
+%>
+		<%=cid%>_queueArguments.put("<%=hKey%>", "<%=hValue%>");
+<%
+	}
+%>
+
+String <%=cid%>_encoding = "<%=messageEncoding%>";
+
+com.rabbitmq.client.ConnectionFactory <%=cid%>_connFactory = new com.rabbitmq.client.ConnectionFactory();
+<%=cid%>_connFactory.setUsername(<%=userName%>);
+<%=cid%>_connFactory.setPassword(<%=password%>);
+<%=cid%>_connFactory.setHost(<%=host%>);
+<%=cid%>_connFactory.setPort(<%=port%>);
+<%=cid%>_connFactory.setVirtualHost(<%=virtualHost%>); //by Francisco
+ 
+com.rabbitmq.client.Connection <%=cid%>_conn = <%=cid%>_connFactory.newConnection();
+com.rabbitmq.client.Channel <%=cid%>_channel = <%=cid%>_conn.createChannel();
+
+if(<%=isCreateExchange%>) {
+	<%=cid%>_channel.exchangeDelete(<%=exchangeName%>);
+	<%=cid%>_channel.exchangeDeclare(<%=exchangeName%>, "<%=exchangeType%>", <%=isExchangeDurable%>, <%=isExchangeAutoDelete%>, <%=cid%>_exchangeArguments);
+}
+
+if(<%=isCreateQueue%>) {
+	<%=cid%>_channel.queueDelete(<%=queueName%>, false, !<%=isQueueEmpty%>);
+	<%=cid%>_channel.queueDeclare(<%=queueName%>, <%=isQueueDurable%>, <%=isQueueExclusive%>, <%=isQueueAutoDelete%>, <%=cid%>_queueArguments);
+	<%=cid%>_channel.queueBind(<%=queueName%>, <%=queueExchangeName%>, <%=queueRoutingKey%>);
+}
+
+try {

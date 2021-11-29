@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<mapping>
+	<dbms product="ES" id="id_ES" label="Mapping ES" default="true">
+		<dbTypes>
+			<dbType type="Boolean" default="true" ignoreLen="true" ignorePre="true" />
+			<dbType type="Integer" default="true" ignoreLen="true" ignorePre="true" />
+			<dbType type="Long" default="true" ignoreLen="true" ignorePre="true" />
+			<dbType type="Float" default="true" ignoreLen="true" ignorePre="true" />
+			<dbType type="Double" default="true" ignoreLen="true" ignorePre="true" />
+			<dbType type="String" default="true" ignoreLen="true" ignorePre="true" />
+			<dbType type="Object" default="true" ignoreLen="true" ignorePre="true" />
+			<dbType type="Array" default="true" ignoreLen="true" ignorePre="true" />
+		</dbTypes>
+		<language name="java">
+			<talendToDbTypes>
+				<talendType type="id_Boolean">
+					<dbType type="Boolean" default="true" />
+				</talendType>
+				<talendType type="id_Integer">
+					<dbType type="Int" default="0" />
+				</talendType>
+				<talendType type="id_Long">
+					<dbType type="Long" default="0" />
+				</talendType>
+				<talendType type="id_Float">
+					<dbType type="Float" default="true" />
+				</talendType>
+				<talendType type="id_Double">
+					<dbType type="Double" default="true" />
+				</talendType>
+				<talendType type="id_String">
+					<dbType type="String"  default="true" />
+					<dbType type="Object" default="true" />
+					<dbType type="Array" default="true" />
+				</talendType>
+			</talendToDbTypes>
+			<dbToTalendTypes>
+				<dbType type="Boolean">
+					<talendType type="id_Boolean" default="true" />
+				</dbType>
+				<dbType type="Int">
+					<talendType type="id_Integer" default="true" />
+				</dbType>
+				<dbType type="Long">
+					<talendType type="id_Long" default="true" />
+				</dbType>
+				<dbType type="Float">
+					<talendType type="id_Float" default="true" />
+				</dbType>
+				<dbType type="Double">
+					<talendType type="id_Double" default="true" />
+				</dbType>
+				<dbType type="String">
+					<talendType type="id_String" default="true" />
+				</dbType>
+				<dbType type="Object">
+					<talendType type="id_String" default="true" />
+				</dbType>
+				<dbType type="Array">
+					<talendType type="id_String" default="true" />
+				</dbType>
+			</dbToTalendTypes>
+		</language>
+	</dbms>
+</mapping>

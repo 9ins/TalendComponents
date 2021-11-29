@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<COMPONENT>
+    <HEADER AUTHOR="Kooin-Shin" 
+    		COMPATIBILITY="ALL" 
+    		PARTITIONING="AUTO" 
+    		PLATEFORM="ALL" 
+    		RELEASE_DATE="20191211A" 
+    		SERIAL="" 
+    		STARTABLE="true" 
+    		STATUS="ALPHA" 
+    		VERSION="0.93"
+    		DATA_AUTO_PROPAGATE="false"
+    		>
+        <SIGNATURE/>
+    </HEADER>
+    <FAMILIES>
+        <FAMILY>Redis</FAMILY>
+    </FAMILIES>
+    <DOCUMENTATION>
+        <URL>http://www.innoquartz.com/</URL>
+    </DOCUMENTATION>
+    <CONNECTORS>
+        <CONNECTOR CTYPE="FLOW" BASE_SCHEMA="PARAMS" MAX_INPUT="1" MAX_OUTPUT="0"/>
+        <CONNECTOR NAME="RESULT" CTYPE="FLOW" BASE_SCHEMA="RESULT" MAX_INPUT="0" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="ITERATE" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="SUBJOB_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="COMPONENT_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="RUN_IF" MAX_INPUT="1" MAX_OUTPUT="1"/>
+    </CONNECTORS>
+    <PARAMETERS>
+        <PARAMETER FIELD="SCHEMA_TYPE" NAME="INPUT_SCHEMA" CONTEXT="PARAMS" NUM_ROW="1" READONLY="true" SHOW_IF="USE_INPUT == 'true'">
+            <TABLE READONLY="true">
+                <COLUMN NAME="db" READONLY="true" TYPE="id_String"/>
+                <COLUMN NAME="command" READONLY="true" TYPE="id_String"/>
+                <COLUMN NAME="parameters" READONLY="true" TYPE="id_String"/>
+            </TABLE>
+        </PARAMETER>
+        <PARAMETER FIELD="SCHEMA_TYPE" NAME="OUTPUT_SCHEMA" CONTEXT="RESULT" NUM_ROW="1" SHOW_IF="true">
+        </PARAMETER>
+        <PARAMETER FIELD="CHECK" GROUP="CONN" NAME="USE_EXIST_CONN" NUM_ROW="2" SHOW_IF="true">
+            <DEFAULT>true</DEFAULT>
+        </PARAMETER>
+        <PARAMETER DYNAMIC_SETTINGS="true" FIELD="COMPONENT_LIST" FILTER="qRedisConnectionByLettuce" GROUP="CONN" NAME="CONNECTION" NUM_ROW="2" SHOW_IF="USE_EXIST_CONN == 'true'" REQUIRED="true"/>
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="CONN" NAME="CODEC" NUM_ROW="4" SHOW_IF="USE_EXIST_CONN == 'false'">
+            <ITEMS DEFAULT="UTF8">
+                <ITEM NAME="ASCII" VALUE="ASCII"/>
+                <ITEM NAME="UTF8" VALUE="UTF8"/>
+            </ITEMS>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="HOST" NUM_ROW="5" SHOW_IF="USE_EXIST_CONN == 'false'">
+            <DEFAULT>"localhost"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="PORT" NUM_ROW="5" SHOW_IF="USE_EXIST_CONN == 'false'">
+            <DEFAULT>"6379"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="TIMEOUT" NUM_ROW="5" SHOW_IF="USE_EXIST_CONN == 'false'">
+            <DEFAULT>"30000"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="PASSWORD" GROUP="CONN" NAME="PASSWORD" NUM_ROW="10" SHOW_IF="USE_EXIST_CONN == 'false'">
+        	<DEFAULT>""</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="RADIO" GROUP="RADIO" NAME="USE_INPUT" NUM_ROW="15" SHOW_IF="true">
+            <DEFAULT>true</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="RADIO" GROUP="RADIO" NAME="USE_COMMAND" NUM_ROW="15" SHOW_IF="true">
+            <DEFAULT>false</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="RADIO" GROUP="RADIO" NAME="USE_SCRIPT" NUM_ROW="15" SHOW_IF="true">
+            <DEFAULT>false</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="COMMANDS" NAME="DB" NUM_ROW="20" NOT_SHOW_IF="USE_INPUT == 'true'">
+            <DEFAULT>"0"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="COMMANDS" NAME="COMMAND" NUM_ROW="21" SHOW_IF="USE_COMMAND == 'true'">
+            <ITEMS DEFAULT="SET">
+                <ITEM NAME="EXISTS" VALUE="EXISTS"/>
+                <ITEM NAME="KEYS" VALUE="KEYS"/>
+                <ITEM NAME="SCAN" VALUE="SCAN"/>
+                <ITEM NAME="GET" VALUE="GET"/>
+                <ITEM NAME="SET" VALUE="SET"/>
+                <ITEM NAME="GETSET" VALUE="GETSET"/>
+                <ITEM NAME="DECR" VALUE="DECR"/>
+                <ITEM NAME="DECRBY" VALUE="DECRBY"/>
+                <ITEM NAME="INCR" VALUE="INCR"/>
+                <ITEM NAME="INCRBY" VALUE="INCRBY"/>
+                <ITEM NAME="HGET" VALUE="HGET"/>
+                <ITEM NAME="HGETALL" VALUE="HGETALL"/>
+                <ITEM NAME="HSET" VALUE="HSET"/>
+                <ITEM NAME="HMGET" VALUE="HMGET"/>
+                <ITEM NAME="HMSET" VALUE="HMSET"/>
+                <ITEM NAME="HKEYS" VALUE="HKEYS"/>
+                <ITEM NAME="HVALS" VALUE="HVALS"/>
+                <ITEM NAME="HSCAN" VALUE="HSCAN"/>
+                <ITEM NAME="HINCRBY" VALUE="HINCRBY"/>
+            </ITEMS>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="COMMANDS" NAME="PARAMETER" NUM_ROW="25" SHOW_IF="USE_COMMAND == 'true'">
+        	<DEFAULT>"key value"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="COMMANDS" NAME="RETURN_TYPE" NUM_ROW="21" SHOW_IF="USE_SCRIPT == 'true'">
+            <ITEMS DEFAULT="STATUS">
+                <ITEM NAME="BOOLEAN" VALUE="BOOLEAN"/>
+                <ITEM NAME="INTEGER" VALUE="INTEGER"/>
+                <ITEM NAME="MULTI" VALUE="MULTI"/>
+                <ITEM NAME="STATUS" VALUE="STATUS"/>
+                <ITEM NAME="VALUE" VALUE="VALUE"/>
+            </ITEMS>
+        </PARAMETER>
+        <PARAMETER FIELD="MEMO_JAVA" GROUP="COMMANDS" NAME="SCRIPT" NUM_ROW="25"  SHOW_IF="USE_SCRIPT == 'true'">
+        	<DEFAULT>"return redis.call('set','foo','bar')"</DEFAULT>
+        </PARAMETER>
+    </PARAMETERS>
+    <ADVANCED_PARAMETERS>
+        <PARAMETER FIELD="CHECK" NAME="DIE_ON_ERROR" NUM_ROW="1" SHOW_IF="true">
+            <DEFAULT>false</DEFAULT>
+        </PARAMETER>
+    </ADVANCED_PARAMETERS>
+    <CODEGENERATION>
+        <IMPORTS>        
+            <IMPORT MODULE="lettuce-core-5.2.1.RELEASE.jar" NAME="lettuce-core-5.2.1.RELEASE" REQUIRED="true"/>
+            <IMPORT MODULE="netty-all-4.1.43.Final.jar" NAME="netty-all-4.1.43.Final" REQUIRED="true"/>
+            <IMPORT MODULE="reactive-streams-1.0.3.jar" NAME="reactive-streams-1.0.3" REQUIRED="true"/>
+            <IMPORT MODULE="reactor-core-3.3.0.RELEASE.jar" NAME="reactor-core-3.3.0.RELEASE.jar" REQUIRED="true"/>
+        </IMPORTS>
+    </CODEGENERATION>
+    <RETURNS>
+        <RETURN AVAILABILITY="FLOW" NAME="NB_LINE" TYPE="id_Integer"/>
+    </RETURNS>
+</COMPONENT>

@@ -1,0 +1,140 @@
+<%@ jet
+    imports="
+    org.talend.core.model.process.INode 
+    org.talend.core.model.process.ElementParameterParser 
+    org.talend.core.model.process.IConnection
+    org.talend.core.model.process.IConnectionCategory
+    org.talend.core.model.metadata.IMetadataTable 
+    org.talend.core.model.metadata.IMetadataColumn 
+    org.talend.designer.codegen.config.CodeGeneratorArgument
+    java.util.List
+    java.util.Map
+    java.util.HashMap
+" 
+%>
+
+<%
+class TKafkaOutputUtil {
+	
+	 private INode node;
+	 
+	 private INode connNode;
+	 
+	 private TSetKeystoreUtil tSetKeystoreUtil;
+
+    private IConnection incomingConnection;
+
+    private Map<String, String> kafkaProducerProperties;
+
+    public TKafkaOutputUtil(INode node) {
+        this.node = node;
+        this.connNode = Boolean.valueOf(ElementParameterParser.getValue(node, "__USE_EXISTING_CONNECTION__"))
+            ? ElementParameterParser.getLinkedNodeValue(node, "__CONNECTION__")
+            : node;
+		  this.tSetKeystoreUtil = new TSetKeystoreUtil(connNode);
+        this.incomingConnection = findIncomingConnection();
+        this.kafkaProducerProperties = findKafkaProducerProperties();
+    }
+    
+    public String getInStructName() {
+		return this.incomingConnection.getName() + "Struct";
+	 }
+
+    public String getEncoding() {
+        return ElementParameterParser.getValue(node, "__ENCODING__");
+    }
+
+    public String getBrokerList() {
+        return ElementParameterParser.getValue(connNode, "__BROKER_LIST__");
+    }
+
+    public String getCompression() {
+        String compression = "none";
+        if ("true".equals(ElementParameterParser.getValue(node, "__COMPRESS__"))) {
+            compression = ElementParameterParser.getValue(node, "__COMPRESSION__").toLowerCase();
+        }
+        return compression;
+    }
+
+    public IConnection getIncomingConnection() {
+        return this.incomingConnection;
+    }
+
+    public Map<String, String> getKafkaProducerProperties() {
+        return this.kafkaProducerProperties;
+    }
+
+    public String getKafkaTopic() {
+        return ElementParameterParser.getValue(node, "__KAFKA_TOPIC__");
+    }
+
+    public String getIncomingColumnName() {
+        return this.incomingConnection.getMetadataTable().getListColumns().get(0).getLabel();
+    }
+    
+    public TSetKeystoreUtil getTSetKeystoreUtil() {
+        return tSetKeystoreUtil;
+    }
+    
+    public String getSecurityProtocol() {
+			if (tSetKeystoreUtil.useHTTPS()) {
+				return useKrb() ? "SASL_SSL" : "SSL";
+			} else {
+				return useKrb() ? "SASL_PLAINTEXT" : "PLAINTEXT";
+			}
+    }
+    
+    public boolean useKrb() {
+			return "true".equals(ElementParameterParser.getValue(connNode, "__USE_KRB__"));
+    }
+    
+    public String getJAASConf() {
+    		return ElementParameterParser.getValue(connNode, "__JAAS_CONF__");
+    }
+    
+    public String getKrbServiceName() {
+    		return ElementParameterParser.getValue(connNode, "__KRB_SERVICE_NAME__");
+    }
+    
+    public boolean isSetKinitPath() {
+			return "true".equals(ElementParameterParser.getValue(connNode, "__SET_KINIT_PATH__"));
+    }
+    
+    public String getKinitPath() {
+    		return ElementParameterParser.getValue(connNode, "__KINIT_PATH__");
+    }
+    
+    public boolean isSetKrb5Conf() {
+			return "true".equals(ElementParameterParser.getValue(connNode, "__SET_KRB5_CONF__"));
+    }
+    
+    public String getKrb5Conf() {
+    		return ElementParameterParser.getValue(connNode, "__KRB5_CONF__");
+    }
+    
+    private IConnection findIncomingConnection() {
+        IConnection result = null;
+        if (node.getIncomingConnections() != null) {
+            for (IConnection in : node.getIncomingConnections()) {
+                if (in.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
+                    result = in;
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    private Map<String, String> findKafkaProducerProperties() {
+        Map<String, String> result = new HashMap<String, String>();
+        List<Map<String, String>> producerPropertiesFromStudio = (List<Map<String, String>>) ElementParameterParser
+                .getObjectValue(node, "__KAFKA_PRODUCER_PROPERTIES__");
+        if(producerPropertiesFromStudio != null) {
+	        for (Map<String, String> producerPropertyFromStudio : producerPropertiesFromStudio) {
+	            result.put(producerPropertyFromStudio.get("PROPERTY"), producerPropertyFromStudio.get("VALUE"));
+	        }
+        }
+        return result;
+    }
+}
+%>

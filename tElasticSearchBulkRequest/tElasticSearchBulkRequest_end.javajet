@@ -1,0 +1,98 @@
+		<%@ jet 
+			imports="
+			org.talend.core.model.process.INode 
+			org.talend.core.model.process.ElementParameterParser 
+			org.talend.designer.codegen.config.CodeGeneratorArgument
+			org.talend.core.model.process.IConnection
+			org.talend.core.model.process.IConnectionCategory
+			java.util.Map
+			java.util.List
+			org.talend.core.model.metadata.IMetadataTable
+			org.talend.core.model.metadata.IMetadataColumn
+		" 
+		%>
+
+<%
+		CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+		INode node = (INode)codeGenArgument.getArgument();
+		String cid = node.getUniqueName();
+		
+		String TYPE = ElementParameterParser.getValue(node, "__TYPE__");
+		String INDEX = ElementParameterParser.getValue(node, "__INDEX__");
+		String ID = ElementParameterParser.getValue(node, "__ID__");
+		String DOC_AS_UPSERT = ElementParameterParser.getValue(node, "__DOC_AS_UPSERT__");
+		boolean DIE_ON_ERROR = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+%>
+//System.out.println(<%=cid%>_bulkList.size());
+if(<%=cid%>_bulkList.size() > 0) {
+	try {
+		org.elasticsearch.action.bulk.BulkRequest <%=cid%>_request =  new org.elasticsearch.action.bulk.BulkRequest();	
+		for(java.util.Map map : <%=cid%>_bulkList) {
+			String type = map.remove("<%=TYPE%>")+"";
+			String index = map.remove("<%=INDEX%>")+"";
+			String id = map.remove("<%=ID%>")+"";
+			if(<%=cid%>_TIMEOUT > 0) {
+				<%=cid%>_request.timeout(org.elasticsearch.common.unit.TimeValue.timeValueMinutes(<%=cid%>_TIMEOUT));
+			}	
+			if(type.equalsIgnoreCase("INDEX")) {
+				<%=cid%>_request.add(new org.elasticsearch.action.index.IndexRequest(index).id(id).source(map, org.elasticsearch.common.xcontent.XContentType.JSON));
+			} else if(type.equalsIgnoreCase("UPDATE")) {
+				<%=cid%>_request.add(new org.elasticsearch.action.update.UpdateRequest(index, id).doc(map, org.elasticsearch.common.xcontent.XContentType.JSON).docAsUpsert(<%=DOC_AS_UPSERT%>));
+			} else if(type.equalsIgnoreCase("DELETE")) {
+				<%=cid%>_request.add(new org.elasticsearch.action.delete.DeleteRequest(index, id));
+			} else {
+				throw new RuntimeException("Request type is wrong: "+type);
+			}
+		}
+		org.elasticsearch.action.bulk.BulkResponse <%=cid%>_res = <%=cid%>_client.bulk(<%=cid%>_request, org.elasticsearch.client.RequestOptions.DEFAULT);
+
+		((List)globalMap.get("<%=cid%>_RESPONSE")).addAll(java.util.Arrays.asList(<%=cid%>_res.getItems()).stream().filter(m -> m.isFailed()).map(f -> f.isFailed()+"|"+f.getType()+"|"+f.getIndex()+"|"+f.getId()+"|"+f.getFailureMessage()).collect(java.util.stream.Collectors.toList()));
+	} catch(Exception e) {
+		if(<%=cid%>_DIE_ON_ERROR) {
+			throw e;
+		}
+		e.printStackTrace();
+	}		
+}	
+
+		<%
+			String responseConnName = null;
+			List<? extends IConnection> responseConns = node.getOutgoingConnections("FAIL");
+			if(responseConns != null && responseConns.size() > 0) {
+			    IConnection responseConn = responseConns.get(0);
+			    responseConnName = responseConn.getName();
+			}
+			List<IMetadataColumn> responseColumnList = null;
+			IMetadataTable responseMetadataTable = node.getMetadataFromConnector("FAIL");
+			if(responseMetadataTable != null) {
+				responseColumnList = responseMetadataTable.getListColumns();
+			}
+			if(responseConnName != null) {
+		%>			
+			if(<%=cid%>_resList	!= null) {
+				for(String res : <%=cid%>_resList) {
+					java.util.List<String> list = java.util.Arrays.asList(res.split(java.util.regex.Pattern.quote("|")));
+					int cnt = 0;
+					<%
+					for(IMetadataColumn col : responseColumnList) {
+					%>
+						<%=responseConnName%>.<%=col.getLabel()%> = list.get(cnt++);
+					<%
+					}
+					%>
+				}
+			} else {
+				<%=responseConnName%> = new <%=responseConnName%>Struct();
+				<%=responseConnName%>.type = null;
+				<%=responseConnName%>.index = null;
+				<%=responseConnName%>.id = null;
+				<%=responseConnName%>.message = null;
+			}
+		<%
+			}
+		%>
+if(<%=cid%>_timer != null)
+	<%=cid%>_timer.cancel();
+if(<%=cid%>_client != null)
+	<%=cid%>_client.close();
+		

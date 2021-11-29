@@ -1,0 +1,274 @@
+		<%@ jet 
+			imports="
+			org.talend.core.model.process.INode 
+			org.talend.core.model.process.ElementParameterParser 
+			org.talend.designer.codegen.config.CodeGeneratorArgument
+			org.talend.core.model.process.IConnection
+			org.talend.core.model.process.IConnectionCategory
+			org.talend.core.model.process.*
+			java.util.Map
+			java.util.List
+			org.talend.core.model.metadata.IMetadataTable
+			org.talend.core.model.metadata.IMetadataColumn
+		" 
+		%>
+		
+		<%
+		CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+		INode node = (INode)codeGenArgument.getArgument();
+		String cid = node.getUniqueName();
+
+		boolean useExistConn = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_EXIST_CONN__"));
+		String connection = ElementParameterParser.getValue(node, "__CONNECTION__");
+		boolean useInput = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_INPUT__"));
+		boolean useCommand = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_COMMAND__"));
+		boolean useScript = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__USE_SCRIPT__"));
+		String db_index = ElementParameterParser.getValue(node, "__DB__");
+		String command = ElementParameterParser.getValue(node, "__COMMAND__");
+		String params = ElementParameterParser.getValue(node, "__PARAMETER__");
+		String returnType = ElementParameterParser.getValue(node, "__RETURN_TYPE__");
+		String script = ElementParameterParser.getValue(node, "__SCRIPT__");
+		boolean dieOnError = Boolean.parseBoolean((ElementParameterParser.getValue(node, "__DIE_ON_ERROR__")));
+
+		String outConnName = null;
+		IConnection outConn = null;
+		java.util.List<? extends IConnection> outConns = node.getOutgoingConnections();
+		if(outConns != null && outConns.size() > 0) {
+			outConn = outConns.get(0);
+		    outConnName = outConn.getName();
+		}
+		String inConnName = null;
+		IConnection inConn = null;
+		java.util.List<? extends IConnection> inConns = node.getIncomingConnections(EConnectionType.FLOW_MAIN);
+		if(inConns != null && inConns.size() > 0) {
+			inConn = inConns.get(0);
+			inConnName = inConn.getName();
+		}
+		IMetadataTable inMeta = node.getMetadataFromConnector(inConnName);
+		IMetadataTable outMeta = node.getMetadataFromConnector(outConnName);
+		%>
+		
+		int <%=cid%>_db = -1;
+		String <%=cid%>_command = null;
+		String <%=cid%>_params = null;
+
+		boolean <%=cid%>_dieOnError = <%=dieOnError%>;
+		
+		if(<%=useCommand%>) {
+			<%=cid%>_db = Integer.parseInt(<%=db_index%>);
+			<%=cid%>_command = "<%=command%>";
+			<%=cid%>_params = <%=params%>;			
+		} else if(<%=useInput%>) {
+			if(<%=inConnName%> == null) {
+				throw new RuntimeException("It must be Incoming main connection needed. and It must have parameter columns(db, command, parameters)");
+			}
+			<%
+			if(inConn != null) {
+				IMetadataTable metaTable = inConn.getMetadataTable();
+				if(metaTable != null) {
+					IMetadataColumn column = metaTable.getColumn("db");
+					IMetadataColumn column1 = metaTable.getColumn("command");
+					IMetadataColumn column2 = metaTable.getColumn("parameters");
+					if(column != null && column1 != null && column2 != null) {
+						String columnVal = inConnName+"."+column.getLabel();
+						String column1Val = inConnName+"."+column1.getLabel();
+						String column2Val = inConnName+"."+column2.getLabel();
+						%>
+						<%=cid%>_db = Integer.parseInt(<%=columnVal%>);
+						<%=cid%>_command = <%=column1Val%>;
+						<%=cid%>_params = <%=column2Val%>;
+						<%
+					}
+				}
+			}
+			%>
+		} else if(<%=useScript%>) {
+			<%=cid%>_db = Integer.parseInt(<%=db_index%>);
+		}		
+		java.util.List<Object> <%=cid%>_result = new java.util.ArrayList<Object>();
+
+		try {
+			io.lettuce.core.api.sync.RedisCommands<String, String> <%=cid%>_redisCommand = <%=cid%>_connection.sync();
+			<%=cid%>_redisCommand.select(<%=cid%>_db);
+			
+			if(<%=useScript%>) {
+				Object <%=cid%>_obj = <%=cid%>_redisCommand.eval(<%=script%>, io.lettuce.core.ScriptOutputType.valueOf("<%=returnType%>"));
+				if(<%=cid%>_obj instanceof Boolean 
+					|| <%=cid%>_obj instanceof String 
+					|| <%=cid%>_obj instanceof Short
+					|| <%=cid%>_obj instanceof Integer
+					|| <%=cid%>_obj instanceof Long
+					|| <%=cid%>_obj instanceof Float
+					|| <%=cid%>_obj instanceof Double) {
+					<%=cid%>_result.add(<%=cid%>_obj);
+				} else if(<%=cid%>_obj instanceof List) {
+					//System.out.println(<%=cid%>_obj.toString());
+					<%=cid%>_result.add((List)<%=cid%>_obj);
+				} else {
+					throw new RuntimeException("Wrong script return type is received: "+<%=cid%>_obj.getClass().getTypeName());
+				}
+			} else {
+				String[] <%=cid%>_parameters = <%=cid%>_params.split(" ");
+				if(<%=cid%>_command.equalsIgnoreCase("EXISTS")) {				
+					Object <%=cid%>_value = <%=cid%>_redisCommand.exists(<%=cid%>_parameters);
+					<%=cid%>_result.add(<%=cid%>_value);
+				} else if(<%=cid%>_command.equalsIgnoreCase("KEYS")) {				
+					java.util.List<String> <%=cid%>_value = <%=cid%>_redisCommand.keys(<%=cid%>_parameters[0]);
+					<%=cid%>_result.addAll(<%=cid%>_value);
+				} else if(<%=cid%>_command.equalsIgnoreCase("SCAN")) {
+					io.lettuce.core.KeyScanCursor<String> <%=cid%>_value = null;
+					if(<%=cid%>_parameters.length == 1) {
+						<%=cid%>_value = <%=cid%>_redisCommand.scan(io.lettuce.core.ScanCursor.of(<%=cid%>_parameters[0]));
+					} else if(<%=cid%>_parameters.length == 3) {
+						<%=cid%>_value = <%=cid%>_redisCommand.scan(io.lettuce.core.ScanCursor.of(<%=cid%>_parameters[0]), io.lettuce.core.ScanArgs.Builder.matches(<%=cid%>_parameters[2]));
+					} else if(<%=cid%>_parameters.length == 5) {
+						<%=cid%>_value = <%=cid%>_redisCommand.scan(io.lettuce.core.ScanCursor.of(<%=cid%>_parameters[0]), io.lettuce.core.ScanArgs.Builder.matches(<%=cid%>_parameters[2]).limit(Integer.parseInt(<%=cid%>_parameters[4])));
+					} else {
+						throw new IllegalArgumentException("SCAN parameter count is wrong!!! "+<%=cid%>_parameters.length);
+					}
+					if(<%=cid%>_value != null) {
+						<%=cid%>_result.addAll(<%=cid%>_value.getKeys());
+					}
+				} else if(<%=cid%>_command.equalsIgnoreCase("GET")) {				
+					String <%=cid%>_value = <%=cid%>_redisCommand.get(<%=cid%>_parameters[0]);
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("SET")) {
+					String <%=cid%>_value = <%=cid%>_redisCommand.set(<%=cid%>_parameters[0], java.util.Arrays.asList(<%=cid%>_parameters).subList(1, <%=cid%>_parameters.length).stream().collect(java.util.stream.Collectors.joining(" ")));
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("GETSET")) {
+					String <%=cid%>_value = <%=cid%>_redisCommand.getset(<%=cid%>_parameters[0], java.util.Arrays.asList(<%=cid%>_parameters).subList(1, <%=cid%>_parameters.length).stream().collect(java.util.stream.Collectors.joining(" ")));
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("DECR")) {
+					Long <%=cid%>_value = <%=cid%>_redisCommand.decr(<%=cid%>_parameters[0]);
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("DECRBY")) {
+					Long <%=cid%>_value = <%=cid%>_redisCommand.decrby(<%=cid%>_parameters[0], Integer.parseInt(<%=cid%>_parameters[1]));
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("INCR")) {
+					Long <%=cid%>_value = <%=cid%>_redisCommand.incr(<%=cid%>_parameters[0]);
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("INCRBY")) {
+					Long <%=cid%>_value = <%=cid%>_redisCommand.incrby(<%=cid%>_parameters[0], Integer.parseInt(<%=cid%>_parameters[1]));
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("HGET")) {
+					String <%=cid%>_value = <%=cid%>_redisCommand.hget(<%=cid%>_parameters[0], java.util.Arrays.asList(<%=cid%>_parameters).subList(1, <%=cid%>_parameters.length).stream().collect(java.util.stream.Collectors.joining(" ")));
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("HGETALL")) {
+					java.util.Map<String, String> <%=cid%>_value = <%=cid%>_redisCommand.hgetall(<%=cid%>_parameters[0]);
+					for(java.util.Map.Entry<String, String> <%=cid%>_entry : <%=cid%>_value.entrySet()) {
+						<%=cid%>_result.add(<%=cid%>_entry);
+					}
+				} else if(<%=cid%>_command.equalsIgnoreCase("HSET")) {
+					Boolean <%=cid%>_value = <%=cid%>_redisCommand.hset(<%=cid%>_parameters[0], <%=cid%>_parameters[1], <%=cid%>_parameters[2]);
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("HMGET")) {
+					String[] <%=cid%>_arr = new String[<%=cid%>_parameters.length-1];
+					System.arraycopy(<%=cid%>_parameters, 1, <%=cid%>_arr, 0, <%=cid%>_arr.length);
+					java.util.List<io.lettuce.core.KeyValue<String, String>> <%=cid%>_value = <%=cid%>_redisCommand.hmget(<%=cid%>_parameters[0], <%=cid%>_arr);
+					for(io.lettuce.core.KeyValue<String, String> <%=cid%>_keyval : <%=cid%>_value) {
+						<%=cid%>_result.add(new java.util.AbstractMap.SimpleEntry<String, String>(<%=cid%>_keyval.getKey(), <%=cid%>_keyval.getValue()));
+					}
+				} else if(<%=cid%>_command.equalsIgnoreCase("HMSET")) {
+					String <%=cid%>_key = <%=cid%>_parameters[0];			
+					java.util.Map<String, String> <%=cid%>_map = new java.util.HashMap<String, String>();
+					for(int i=1; i<<%=cid%>_parameters.length; i += 2) {
+						<%=cid%>_map.put(<%=cid%>_parameters[i], <%=cid%>_parameters[i+1]);
+					}
+					String <%=cid%>_value = <%=cid%>_redisCommand.hmset(<%=cid%>_key, <%=cid%>_map);
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("HKEYS")) {
+					java.util.List<String> <%=cid%>_value = <%=cid%>_redisCommand.hkeys(<%=cid%>_parameters[0]);
+					<%=cid%>_result.addAll(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("HVALS")) {
+					java.util.List<String> <%=cid%>_value = <%=cid%>_redisCommand.hvals(<%=cid%>_parameters[0]);
+					<%=cid%>_result.addAll(<%=cid%>_value);				
+				} else if(<%=cid%>_command.equalsIgnoreCase("HSCAN")) {
+					io.lettuce.core.MapScanCursor<String, String> <%=cid%>_value = <%=cid%>_redisCommand.hscan(<%=cid%>_parameters[0]);
+					for(java.util.Map.Entry<String, String> <%=cid%>_entry : <%=cid%>_value.getMap().entrySet()) {
+						<%=cid%>_result.add(<%=cid%>_entry);
+					}				
+				} else if(<%=cid%>_command.equalsIgnoreCase("HINCRBY")) {
+					Long <%=cid%>_value = <%=cid%>_redisCommand.hincrby(<%=cid%>_parameters[0], <%=cid%>_parameters[1], Integer.parseInt(<%=cid%>_parameters[2]));
+					<%=cid%>_result.add(<%=cid%>_value);				
+				} else {
+					throw new RuntimeException("Illegal command exception: "+<%=cid%>_command);
+				}			
+			}
+		} catch(Exception e) {
+			if(<%=dieOnError%>) {
+				throw e;
+			} else {
+				e.printStackTrace();
+			}
+		}
+		
+			for(Object <%=cid%>_obj : <%=cid%>_result) {
+				if(<%=cid%>_obj instanceof Boolean 
+					|| <%=cid%>_obj instanceof String 
+					|| <%=cid%>_obj instanceof Short
+					|| <%=cid%>_obj instanceof Integer 
+					|| <%=cid%>_obj instanceof Long
+					|| <%=cid%>_obj instanceof Float
+					|| <%=cid%>_obj instanceof Double) {
+					<%
+					if(outConnName != null) {
+						IMetadataTable metaTable = outConn.getMetadataTable();
+						List<IMetadataColumn> metaColumnList = metaTable.getListColumns();
+						if(true) {
+							//throw new RuntimeException();
+						}
+						if(metaColumnList != null && metaColumnList.size() > 0) {
+							IMetadataColumn metaColumn = metaColumnList.get(0);
+							if(metaColumn != null) {
+								String type = metaColumn.getTalendType().substring(metaColumn.getTalendType().indexOf("_")+1);
+								String columnVal = outConnName+"."+metaColumn.getLabel();
+						%>
+						<%=columnVal%> = (<%=type%>)<%=cid%>_obj;
+						<%
+							}
+						}
+					}
+					%>
+				} else if(<%=cid%>_obj instanceof java.util.Map.Entry) {
+					java.util.Map.Entry entry = (java.util.Map.Entry)<%=cid%>_obj;
+					<%
+					if(outConnName != null) {
+						IMetadataTable metaTable = outConn.getMetadataTable();
+						if(metaTable != null) {
+							IMetadataColumn metaColumn = metaTable.getColumn("key");
+							IMetadataColumn metaColumn1 = metaTable.getColumn("value");
+							if(metaColumn != null && metaColumn1 != null) {
+								String type = metaColumn.getTalendType().substring(metaColumn.getTalendType().indexOf("_")+1);
+								String type1 = metaColumn1.getTalendType().substring(metaColumn1.getTalendType().indexOf("_")+1);
+								String columnVal = outConnName+"."+metaColumn.getLabel();
+								String columnVal1 = outConnName+"."+metaColumn1.getLabel();
+								%>
+								<%=columnVal%> = (<%=type%>)entry.getKey();
+								<%=columnVal1%> = (<%=type1%>)entry.getValue();
+								<%
+							}
+						}
+					}
+					%>
+				} else if(<%=cid%>_obj instanceof java.util.List) {
+					java.util.List <%=cid%>_list = (java.util.List)<%=cid%>_obj;
+					<%
+					if(outConnName != null) {
+						IMetadataTable metaTable = outConn.getMetadataTable();
+						if(metaTable != null) {
+							List<IMetadataColumn> columnList = metaTable.getListColumns();
+							for(int i=0; i<columnList.size(); i++) {
+								IMetadataColumn column = columnList.get(i);
+								String type = column.getTalendType().substring(column.getTalendType().indexOf("_")+1);
+								%>
+								if(<%=i%> < <%=cid%>_list.size()) {
+									<%=outConnName%>.<%=column.getLabel()%> = (<%=type%>)<%=cid%>_list.get(<%=i%>);
+								}
+								<%
+							}
+						}
+					}
+					%>
+				}
+				nb_line_<%=cid%>++;
+				globalMap.put("<%=cid%>_NB_LINE", nb_line_<%=cid%>);

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<COMPONENT> 
+  <HEADER 
+    AUTHOR="Talend" 
+    COMPATIBILITY="ALL" 
+    DATA_AUTO_PROPAGATE="false" 
+    PLATEFORM="ALL" 
+    RELEASE_DATE="20121212" 
+    SCHEMA_AUTO_PROPAGATE="false" 
+    SERIAL="" 
+    STARTABLE="false" 
+    STATUS="ALPHA" 
+    VERSION="0.1" 
+    VISIBLE="true"> 
+    <SIGNATURE/> 
+  </HEADER>
+  
+  <FAMILIES> 
+    <FAMILY>Misc</FAMILY> 
+  </FAMILIES>
+
+  <DOCUMENTATION> 
+    <URL/> 
+  </DOCUMENTATION>
+
+  <CONNECTORS> 
+    <CONNECTOR CTYPE="FLOW" MAX_INPUT="1" MAX_OUTPUT="1" MIN_INPUT="1" MIN_OUTPUT="1"/>
+    <CONNECTOR CTYPE="SUBJOB_OK" MAX_INPUT="1" />
+    <CONNECTOR CTYPE="SUBJOB_ERROR" MAX_INPUT="1" />
+    <CONNECTOR CTYPE="COMPONENT_OK" />
+    <CONNECTOR CTYPE="COMPONENT_ERROR" />
+    <CONNECTOR CTYPE="RUN_IF" /> 
+  </CONNECTORS>
+    
+  <PARAMETERS> 
+    <PARAMETER 
+      NAME="SCHEMA" 
+      FIELD="SCHEMA_TYPE" 
+      REQUIRED="true" 
+      NUM_ROW="1">
+      <DEFAULT/>
+    </PARAMETER>
+
+
+    <PARAMETER NAME="FILENAMETEXT" FIELD="LABEL" COLOR="0;0;0" NUM_ROW="9" >
+	 <DEFAULT>"Make the output data type of an encrypted column to String in the output schema."</DEFAULT>
+    </PARAMETER>
+
+    <PARAMETER 
+      FIELD="TEXT" 
+      NAME="KEY" 
+      NUM_ROW="11" 
+      READONLY="false" 
+      REQUIRED="true" 
+      SHOW="true">
+      <DEFAULT>"1234567891011121"</DEFAULT>
+    </PARAMETER>
+
+    <PARAMETER FIELD="TABLE" 
+      NAME="SPECIFY_COLS" 
+      NUM_ROW="21"
+      REQUIRED="true" 
+      SHOW="true">
+      <ITEMS BASED_ON_SCHEMA="true">        
+        <ITEM NAME="ENCRYPT_IT" FIELD="CHECK" VALUE="false"/>
+      </ITEMS>
+    </PARAMETER> 
+    
+  </PARAMETERS> 
+   
+  <ADVANCED_PARAMETERS/>
+   
+  <CODEGENERATION>
+	<IMPORTS>
+      		<IMPORT NAME="Commons Codec" MODULE="commons-codec-1.7.jar" REQUIRED="true" />
+	</IMPORTS>
+  </CODEGENERATION>
+  
+  <RETURNS>  
+    <RETURN NAME="NB_LINE_ROWS" TYPE="id_Integer" AVAILABILITY="AFTER"/>
+  </RETURNS>
+</COMPONENT>

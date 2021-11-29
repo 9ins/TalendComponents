@@ -1,0 +1,71 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    boolean isTryCatch = "true".equals(ElementParameterParser.getValue(node, "__TRY_CATCH__"));
+    
+	String inConnName = null;
+	boolean hasInput = false;
+	IMetadataTable inMetadataTable = null;
+	List< ? extends IConnection> inConns = node.getIncomingConnections();
+	if(inConns != null && inConns.size() > 0) {
+		if(inConns.get(0).getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {	
+	    	IConnection conn = inConns.get(0);
+	    	inConnName = conn.getName();
+	    	hasInput = true;
+	    	inMetadataTable = conn.getMetadataTable();
+	   	}
+	}    
+
+	String outConnName = null;
+	boolean hasOutput = false;
+	IMetadataTable outMetadataTable = null;
+	List<? extends IConnection> outConns = node.getOutgoingConnections("FLOW");
+	if(outConns != null && outConns.size() > 0) {
+		IConnection outConn = outConns.get(0);
+	    outConnName = outConn.getName();
+	    hasOutput = true;
+	    outMetadataTable = outConn.getMetadataTable();
+	}
+	
+	String failConnName = null;
+	boolean hasFail = false;
+	IMetadataTable failMetadataTable = null;
+	List<? extends IConnection> failConns = node.getOutgoingConnections("FAIL");
+	if(failConns != null && failConns.size() > 0) {
+	    IConnection failConn = failConns.get(0);
+	    failConnName = failConn.getName();
+	    hasFail = true;
+	    failMetadataTable = failConn.getMetadataTable();
+	}	    
+%>
+
+<%
+if(!isTryCatch) {
+%>
+<%=ElementParameterParser.getValue(node, "__CODE_MAIN__")%>
+<%
+} else {
+%>
+<%=ElementParameterParser.getValue(node, "__CODE_MAIN_TRY_CATCH__")%>
+<%
+}
+%>
+
+<%=cid%>_nb_line++;

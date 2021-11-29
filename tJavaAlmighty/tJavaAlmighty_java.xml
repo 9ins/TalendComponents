@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<COMPONENT> 
+  <HEADER 
+  		AUTHOR="Kooin-Shin" 
+  		COMPATIBILITY="ALL" 
+  		DATA_AUTO_PROPAGATE="false"
+  		SCHEMA_AUTO_PROPAGATE="false"
+  		PLATEFORM="ALL" 
+  		RELEASE_DATE="20200129A" 
+  		SERIAL="" 
+  		STARTABLE="true" 
+  		STATUS="ALPHA" 
+  		VERSION="0.93"> 
+    <SIGNATURE/> 
+  </HEADER>  
+  
+  <FAMILIES> 
+  	<FAMILY>Custom_Code</FAMILY>
+  </FAMILIES>
+    
+  <DOCUMENTATION> 
+    <URL>http://www.chaostocosmos.com</URL> 
+  </DOCUMENTATION>
+    
+  <CONNECTORS> 
+    <CONNECTOR CTYPE="FLOW" MAX_INPUT="1" MAX_OUTPUT="1"/>
+    <CONNECTOR CTYPE="ITERATE" MAX_INPUT="1" MAX_OUTPUT="1"/>
+    <CONNECTOR NAME="FAIL" CTYPE="FLOW" MAX_INPUT="0" MAX_OUTPUT="1" LINE_STYLE="2" COLOR="FF0000" BASE_SCHEMA="FAIL" NOT_SHOW_IF="(DIE_ON_ERROR == 'true')" />
+    <CONNECTOR CTYPE="SUBJOB_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+    <CONNECTOR CTYPE="COMPONENT_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+    <CONNECTOR CTYPE="RUN_IF" MAX_INPUT="1" MAX_OUTPUT="1"/>     
+  </CONNECTORS> 
+     
+  <PARAMETERS> 
+	<PARAMETER NAME="IN_SCHEMA" FIELD="SCHEMA_TYPE" NUM_ROW="1" SHOW="true">
+	</PARAMETER>
+	<PARAMETER NAME="OUT_SCHEMA" FIELD="SCHEMA_TYPE" NUM_ROW="1" SHOW="true">
+	</PARAMETER>	
+    <PARAMETER NAME="CODE_BEGIN" FIELD="MEMO_JAVA" RAW="true" NUM_ROW="30" NB_LINES="8" CONTEXT="begin" REQUIRED="false">
+      <DEFAULT>// initialize component pre-configuration or variables</DEFAULT>
+    </PARAMETER>
+    <PARAMETER NAME="CODE_END" FIELD="MEMO_JAVA" RAW="true" NUM_ROW="30" NB_LINES="8" CONTEXT="end" REQUIRED="false">
+      <DEFAULT>// process component terminative function.</DEFAULT>
+    </PARAMETER>
+	<PARAMETER NAME="FAIL_SCHEMA" FIELD="SCHEMA_TYPE" CONTEXT="FAIL" NUM_ROW="39" SHOW="true">
+	</PARAMETER>    
+    <PARAMETER NAME="TRY_CATCH" FIELD="CHECK" NUM_ROW="39" REQUIRED="true" SHOW="true">
+      <DEFAULT>false</DEFAULT>
+    </PARAMETER> 
+    <PARAMETER NAME="CODE_MAIN" FIELD="MEMO_JAVA" RAW="true" NUM_ROW="40" NB_LINES="12" REQUIRED="false" SHOW_IF="TRY_CATCH == 'false'">
+      <DEFAULT>// here can compose loop logic in main process.
+//you can refer the input value by input_row object
+//you can refer the output_value by output_row object</DEFAULT>
+    </PARAMETER>
+    <PARAMETER NAME="CODE_MAIN_TRY_CATCH" FIELD="MEMO_JAVA" RAW="true" NUM_ROW="40" NB_LINES="15" REQUIRED="false" SHOW_IF="TRY_CATCH == 'true'">
+      <DEFAULT>//you can refer the input value by input_row object
+//you can refer the output_value by output_row object
+//you can assign fail message to fail_map object
+
+try{
+
+} catch(Exception e) 
+{
+	e.printStackTrace();
+	fail_map.put("exception", e);
+}
+
+	  </DEFAULT>
+    </PARAMETER>
+    <PARAMETER NAME="DIE_ON_ERROR" FIELD="CHECK" NUM_ROW="100" REQUIRED="true" SHOW="true">
+      <DEFAULT>false</DEFAULT>
+    </PARAMETER>    
+  </PARAMETERS>
+    
+  <ADVANCED_PARAMETERS> 
+   	<PARAMETER NAME="LIB_TABLE" FIELD="TABLE" NUM_ROW="10" NB_LINES="3" SHOW="true">
+		<ITEMS>
+			<ITEM NAME="MOUDLE" FIELD="MODULE_LIST" VALUE='""'/>
+		</ITEMS>
+	</PARAMETER>
+	<PARAMETER NAME="IMPORT" FIELD="MEMO_IMPORT" RAW="true" NUM_ROW="11" NB_LINES="5" REQUIRED="false">
+		<DEFAULT>//packages here
+import java.util.*;
+import java.util.concurrent.*;
+import java.io.*;
+import java.net.*;
+import java.text.*;</DEFAULT>
+	</PARAMETER>
+  </ADVANCED_PARAMETERS>
+    
+  <CODEGENERATION>
+  </CODEGENERATION>
+    
+  <RETURNS> 
+    <RETURN AVAILABILITY="AFTER" NAME="NB_LINE" TYPE="id_Integer"/> 
+  </RETURNS> 
+</COMPONENT>

@@ -1,0 +1,108 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    String httpServer 			 	= ElementParameterParser.getValue(node, "__HTTP_SERVER__");
+    boolean isUploadPath   		    = "true".equals(ElementParameterParser.getValue(node, "__USE_UPLOAD_PATH_MAPPING__")); 
+    boolean isOverwrite    		    = "true".equals(ElementParameterParser.getValue(node, "__USE_OVERWRITE__"));
+    boolean isCreateSubDir 		    = "true".equals(ElementParameterParser.getValue(node, "__USE_CREATE_SUB_DIR__"));    
+    int ioBuffer			 		= Integer.parseInt(ElementParameterParser.getValue(node, "__IO_BUFFER__").trim());
+    String context			 		= ElementParameterParser.getValue(node, "__HTTP_CONTEXT__");
+    String method		 			= ElementParameterParser.getValue(node, "__METHOD__");
+    String uploadPath	 			= ElementParameterParser.getValue(node, "__UPLOAD_PATH__").replace("\\", "/");    
+    String charset		 			= ElementParameterParser.getValue(node, "__CHARSET__");
+    
+    boolean isCredential			= "true".equals(ElementParameterParser.getValue(node, "__USE_CREDENTIAL__"));
+    String user				 		= ElementParameterParser.getValue(node, "__USER__");
+    String password		 			= ElementParameterParser.getValue(node, "__PASSWORD__");
+    
+    String code			 			= ElementParameterParser.getValue(node, "__RESPONSE_CODE__");
+    code = code.equals("")?null:code;
+    Object value			 		= ElementParameterParser.getValue(node, "__RESPONSE_VALUE__");
+
+    List<Map<String, String>> headers = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__RESPONSE_HEADER__");
+    
+    boolean isSync	 				= "true".equals(ElementParameterParser.getValue(node, "__SYNC__"));    
+    boolean isParameter		 		= "true".equals(ElementParameterParser.getValue(node, "__PRINT_PARAMS__"));
+    boolean isPrintHeader	 		= "true".equals(ElementParameterParser.getValue(node, "__PRINT_HEADER__"));
+    boolean isSysOut		 		= "true".equals(ElementParameterParser.getValue(node, "__PRINT_SYS_OUT__"));
+    boolean isSysErr	 			= "true".equals(ElementParameterParser.getValue(node, "__PRINT_SYS_ERR__"));
+%>
+
+///////////////////////////////////////////////////////
+// Response header setting
+///////////////////////////////////////////////////////
+java.util.List<java.util.Map<String, String>> <%=cid%>_resHeaders = new java.util.ArrayList<java.util.Map<String, String>>();
+<%
+	for(java.util.Map<String, String> map : headers)
+	{
+		String hKey = map.get("HEADER_KEY");
+		String hValue = map.get("HEADER_VALUE");
+%>
+		java.util.HashMap<String, String> <%=cid%>_hMap = new java.util.HashMap<String, String>();
+		<%=cid%>_hMap.put("HEADER_KEY", "<%=hKey%>");
+		<%=cid%>_hMap.put("HEADER_VALUE", <%=hValue%>);
+		<%=cid%>_resHeaders.add(<%=cid%>_hMap);
+<%
+	}
+%>
+
+<%    
+    List< ? extends IConnection> inConns = node.getIncomingConnections();
+	if(inConns != null && inConns.size() > 0) {
+		for(IConnection inConn : inConns) {
+			if(!inConn.getName().equals("HttpHandler"))
+				continue;			
+	    	INode pNode = inConn.getSource();
+	    	String pid = pNode.getUniqueName();
+	    	String targetUnique = null;	    	
+	    	List< ? extends IConnection> outConns = node.getOutgoingConnections();
+	    	if(outConns != null && outConns.size() > 0) {
+	    		targetUnique = "\""+outConns.get(0).getTarget().getUniqueName()+"\"";	    		
+	    	}
+	    	%>
+	    		org.chaostocosmos.http.ChaosHttpServer <%=pid%>_httpServer = (org.chaostocosmos.http.ChaosHttpServer)globalMap.get("<%=pid%>_HTTP_SERVER");
+				org.chaostocosmos.http.ChaosHttpHandler <%=cid%>_httpHandler = new org.chaostocosmos.http.ChaosHttpHandler(
+					"<%=cid%>",
+					<%=pid%>_httpServer, 
+					<%=isCredential%> ? <%=user%> : null, 
+					<%=isCredential%> ? <%=password%> : null, 
+					"<%=method%>", 
+					<%=context%>, 
+					<%=isUploadPath%> ? <%=uploadPath%> : null, 
+					<%=ioBuffer%>, 
+					<%=isCreateSubDir%>, 
+					<%=isOverwrite%>, 
+					<%=isSync%>, 
+					"<%=charset%>", 
+					this, 
+					<%=targetUnique%>, 
+					<%=cid%>_resHeaders, 
+					<%=code%>, 
+					<%=value%>, 
+					<%=isPrintHeader%>, 
+					<%=isParameter%>, 
+					<%=isSysOut%>, 
+					<%=isSysErr%>
+				);
+				<%=pid%>_httpServer.createContext(<%=cid%>_httpHandler.getContext(), <%=cid%>_httpHandler);
+			<%
+   		}
+	}    
+%>

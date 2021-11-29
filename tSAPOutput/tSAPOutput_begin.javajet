@@ -1,0 +1,320 @@
+<%@ jet
+	imports="
+	java.util.List
+	org.talend.core.model.metadata.IMetadataColumn
+	org.talend.core.model.metadata.IMetadataTable
+	org.talend.core.model.process.ElementParameterParser
+	org.talend.core.model.process.IConnection
+	org.talend.core.model.process.IConnectionCategory
+	org.talend.core.model.process.INode
+	org.talend.designer.codegen.config.CodeGeneratorArgument
+	java.util.Map
+	java.util.List
+	"
+%>
+
+<%
+	CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+	INode node = (INode)codeGenArgument.getArgument();
+	String cid = node.getUniqueName();
+%>
+	
+<%	
+	IConnection firstDataConn = null;
+	List<IMetadataColumn> firstColumnList = null;
+
+	//1. get first DATA Link
+	List< ? extends IConnection> conns = node.getIncomingConnections();	
+	if(conns != null && conns.size() > 0){
+		for(IConnection conn : conns){
+			if (conn.getLineStyle().hasConnectionCategory(IConnectionCategory.DATA)) {
+				firstDataConn = conn;
+				break;
+			}
+		}
+	}
+
+	//2. get first columnList (with real columns data) 	
+	List<IMetadataTable> metadatas = node.getMetadataList();
+	IMetadataTable metadata = null;
+	if ( metadatas != null && metadatas.size() > 0 ) {
+		metadata = metadatas.get(0);
+		if(metadata != null){
+			firstColumnList = metadata.getListColumns(); 
+			if ( firstColumnList == null || firstColumnList.size() == 0 ) {
+				firstColumnList = null;
+			}
+		}
+	}
+	
+	//3. check the config Link and Schema
+	if(firstDataConn == null || firstColumnList == null)
+	{
+		return "";
+	}
+%>
+
+<%
+boolean startIterate = false;
+String firstDataConnName = firstDataConn.getName();
+
+String client = ElementParameterParser.getValue(node, "__CLIENT__");
+String userid = ElementParameterParser.getValue(node, "__USERID__");
+String password = ElementParameterParser.getValue(node, "__PASSWORD__");
+String language = ElementParameterParser.getValue(node, "__LANGUAGE__");
+String hostname = ElementParameterParser.getValue(node, "__HOSTNAME__");
+String systemnumber = ElementParameterParser.getValue(node, "__SYSTEMNUMBER__");
+
+String serverType = ElementParameterParser.getValue(node,"__SERVERTYPE__");
+String systemId = ElementParameterParser.getValue(node,"__SYSTEMID__");
+String groupName = ElementParameterParser.getValue(node,"__GROUPNAME__");
+
+String sapBulkCount = ElementParameterParser.getValue(node, "__SAP_BULK_COUNT__");
+
+String functionName = ElementParameterParser.getValue(node, "__SAP_FUNCTION__");
+
+String iterate_out_type = ElementParameterParser.getValue(node, "__SAP_ITERATE_OUT_TYPE__");
+String iterate_out_tablename = ElementParameterParser.getValue(node, "__SAP_ITERATE_OUT_TABLENAME__");
+boolean useFtpHttp = ("true").equals(ElementParameterParser.getValue(node,"__FTP_HTTP_FUNCTION__"));
+boolean useExistingConn = ("true").equals(ElementParameterParser.getValue(node,"__USE_EXISTING_CONNECTION__"));
+String connection = ElementParameterParser.getValue(node,"__CONNECTION__");
+String version = "sapjco.jar";
+if(useExistingConn){
+    List<? extends INode> nodes = node.getProcess().getGeneratingNodes();
+    for(INode targetNode : nodes){
+    	if (targetNode.getUniqueName().equals(connection)) {
+	      version = ElementParameterParser.getValue(targetNode, "__DB_VERSION__");
+	    }
+    }
+}else{
+	version = ElementParameterParser.getValue(node, "__DB_VERSION__");
+}
+
+String passwordFieldName = "__PASSWORD__";
+
+boolean activeSNC = ("true").equals(ElementParameterParser.getValue(node,"__SNC_ACTIVE__"));
+String partnerSNCName = ElementParameterParser.getValue(node,"__SNC_PARTNER_NAME__");
+String mySNCName = ElementParameterParser.getValue(node,"__SNC_MY_NAME__");
+String sncLevel = ElementParameterParser.getValue(node,"__SNC_LEVEL__");
+String sncLibPath = ElementParameterParser.getValue(node,"__SNC_LIB_PATH__");
+boolean hasSNCLibPath = sncLibPath != null && !"".equals(sncLibPath);
+boolean hasMySNCName = mySNCName != null && !"".equals(mySNCName);    
+
+List<Map<String, String>> sapProps = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node, "__SAP_PROPERTIES__");    
+%>
+
+int sapBulkCount_<%=cid%> = Integer.parseInt(<%=sapBulkCount%>);
+int sapCurrCount_<%=cid%> = 0;
+
+<%if("sapjco.jar".equals(version)){%>
+	com.sap.mw.jco.JCO.Client client_<%=cid %> = null;
+	<%if(useExistingConn){%>	    
+		  client_<%=cid %> = (com.sap.mw.jco.JCO.Client)globalMap.get("conn_<%=connection %>");	
+	<%}else{%>
+		<%@ include file="@{org.talend.designer.components.localprovider}/components/templates/password.javajet"%>
+		java.util.Properties properties_<%=cid%> = new java.util.Properties();
+		<%if("ApplicationServer".equals(serverType)){%>
+    		//Create a client connection to a dedicated R/3 system
+    		properties_<%=cid%>.put("jco.client.type", "3");
+    		if (<%=client %> != null) properties_<%=cid%>.put("jco.client.client", <%=client %>);
+    		if (<%=userid %> != null) properties_<%=cid%>.put("jco.client.user", <%=userid %>);
+    		if (decryptedPassword_<%=cid%> != null) properties_<%=cid%>.put("jco.client.passwd", decryptedPassword_<%=cid%>);
+    		if (<%=language %> != null) properties_<%=cid%>.put("jco.client.lang", <%=language %>);
+    		if (<%=hostname %> != null) properties_<%=cid%>.put("jco.client.ashost", <%=hostname %>);
+    		if (<%=systemnumber %> != null) properties_<%=cid%>.put("jco.client.sysnr", <%=systemnumber %>);	
+    	<%}else{%>
+    		//Create a client connection to Message Server 
+    		properties_<%=cid%>.put("jco.client.type", "3");
+            if (<%=client %> != null) properties_<%=cid%>.put("jco.client.client", <%=client %>);
+    		if (<%=userid %> != null) properties_<%=cid%>.put("jco.client.user", <%=userid %>);
+    		if (decryptedPassword_<%=cid%> != null) properties_<%=cid%>.put("jco.client.passwd", decryptedPassword_<%=cid%>);
+    		if (<%=language %> != null) properties_<%=cid%>.put("jco.client.lang", <%=language %>);
+    		if (<%=hostname %> != null) properties_<%=cid%>.put("jco.client.mshost", <%=hostname %>);
+    		if (<%=systemId %> != null) properties_<%=cid%>.put("jco.client.r3name", <%=systemId %>);
+    		if (<%=groupName%> != null) properties_<%=cid%>.put("jco.client.group", <%=groupName%>);
+    	<%}%>
+    	<%
+    	if(activeSNC){
+    	%>
+    		properties_<%=cid%>.setProperty("jco.client.snc_mode", "1");
+    		properties_<%=cid%>.setProperty("jco.client.snc_partnername", <%=partnerSNCName%>);
+    		properties_<%=cid%>.setProperty("jco.client.snc_qop", String.valueOf(<%=sncLevel%>));
+    		<%if(hasMySNCName){%>
+        		if(<%=mySNCName%> != null){
+        			properties_<%=cid%>.setProperty("jco.client.snc_myname", <%=mySNCName%>);
+        		}
+    		<%}%>
+    		<%if(hasSNCLibPath){%>
+        		if(<%=sncLibPath%> != null){
+        			properties_<%=cid%>.setProperty("jco.client.snc_lib", <%=sncLibPath%>);
+        		}
+    		<%}%>
+    	<%
+    	}
+    	%>
+    	<%
+        if(sapProps!=null) {
+    		for(Map<String, String> item : sapProps){
+    		%>	
+    		properties_<%=cid%>.put(<%=item.get("PROPERTY") %> ,<%=item.get("VALUE") %>);
+    		<% 
+    		}
+        }
+    	%>
+    	client_<%=cid %> = com.sap.mw.jco.JCO.createClient(properties_<%=cid%>); 
+		// Open the connection
+		client_<%=cid %>.connect();
+		<%if(useFtpHttp){%>
+		com.sap.mw.jco.JCO.setMiddlewareProperty("jco.middleware.allow_start_of_programs", "ftp;sapftp;sapftpa;sapkprotp;http;saphttp;saphttpa");
+		client_<%=cid %>.setSapGui(2);
+		<%}%>
+	<%}%> 	
+	resourceMap.put("conn_<%=cid%>", client_<%=cid%>);
+      
+    com.sap.mw.jco.IRepository repository_<%=cid %> = com.sap.mw.jco.JCO.createRepository("REPOSITORY", client_<%=cid %>);
+
+    com.sap.mw.jco.IFunctionTemplate functionTemplate_<%=cid %> = repository_<%=cid %>.getFunctionTemplate(<%=functionName %>);
+
+	if(functionTemplate_<%=cid %> == null){
+		com.sap.mw.jco.JCO.releaseClient(client_<%=cid %>);
+		throw new RuntimeException("The RFC can't support the function: " + <%=functionName %> + ".");
+	} 
+	
+    com.sap.mw.jco.JCO.Function function_<%=cid %> = functionTemplate_<%=cid %>.getFunction();
+
+    com.sap.mw.jco.JCO.ParameterList importParameterList_<%=cid %> = function_<%=cid %>.getImportParameterList();
+    com.sap.mw.jco.JCO.ParameterList exportParameterList_<%=cid %> = function_<%=cid %>.getExportParameterList();
+    com.sap.mw.jco.JCO.ParameterList tableParameterList_<%=cid %> = function_<%=cid %>.getTableParameterList();
+    
+    com.sap.mw.jco.JCO.Structure input_structure_<%=cid %>=null;
+    com.sap.mw.jco.JCO.Table input_table_<%=cid %>=null; 
+    com.sap.mw.jco.JCO.Table table_input_<%=cid %>=null; 
+<%}else if("sapjco3.jar".equals(version)){%>
+	com.sap.conn.jco.JCoDestination dest_<%=cid%> = null;
+	<%if(useExistingConn){%>	
+		dest_<%=cid%> = (com.sap.conn.jco.JCoDestination)globalMap.get("conn_<%=connection %>");
+<%	
+			INode connectionNode = null; 
+			for (INode processNode : node.getProcess().getGeneratingNodes()) { 
+				if(connection.equals(processNode.getUniqueName())) { 
+					connectionNode = processNode; 
+					break; 
+				} 
+			} 
+			boolean specify_alias = "true".equals(ElementParameterParser.getValue(connectionNode, "__SPECIFY_DATASOURCE_ALIAS__"));
+			if(specify_alias){
+				String alias = ElementParameterParser.getValue(connectionNode, "__SAP_DATASOURCE_ALIAS__");
+				if(null != alias && !("".equals(alias))){
+%>
+					if(dest_<%=cid%> == null){
+						dest_<%=cid%> = com.sap.conn.jco.JCoDestinationManager.getDestination(<%=alias%>);
+					}
+<%
+				}
+			}
+%>
+	<%}else{%>
+		<%@ include file="@{org.talend.designer.components.localprovider}/components/templates/password.javajet"%>
+<%
+		boolean specify_alias = "true".equals(ElementParameterParser.getValue(node, "__SPECIFY_DATASOURCE_ALIAS__"));
+		if(specify_alias){
+			String alias = ElementParameterParser.getValue(node, "__SAP_DATASOURCE_ALIAS__");
+			if(null != alias && !("".equals(alias))){
+%>
+				dest_<%=cid%> = com.sap.conn.jco.JCoDestinationManager.getDestination(<%=alias%>);
+<%
+			}
+%>
+			if(dest_<%=cid%> == null){
+<%
+		}
+%>
+				org.talend.sap.TSAPDestinationData destinationData_<%=cid%> = null;
+				
+				java.util.Properties properties_<%=cid%> = new java.util.Properties();
+    			<%
+            	if(activeSNC){
+            	%>
+            		properties_<%=cid%>.setProperty("jco.client.snc_mode", "1");
+            		properties_<%=cid%>.setProperty("jco.client.snc_partnername", <%=partnerSNCName%>);
+            		properties_<%=cid%>.setProperty("jco.client.snc_qop", String.valueOf(<%=sncLevel%>));
+            		<%if(hasMySNCName){%>
+                		if(<%=mySNCName%> != null){
+                			properties_<%=cid%>.setProperty("jco.client.snc_myname", <%=mySNCName%>);
+                		}
+            		<%}%>
+            		<%if(hasSNCLibPath){%>
+                		if(<%=sncLibPath%> != null){
+                			properties_<%=cid%>.setProperty("jco.client.snc_lib", <%=sncLibPath%>);
+                		}
+            		<%}%>
+            	<%
+            	}
+            	%>
+				<%
+                if(sapProps!=null) {
+            		for(Map<String, String> item : sapProps){
+            		%>	
+            		properties_<%=cid%>.put(<%=item.get("PROPERTY") %> ,<%=item.get("VALUE") %>);
+            		<% 
+            		}
+                }
+            	%>
+    			<%if("ApplicationServer".equals(serverType)){%>
+    				destinationData_<%=cid%> = new org.talend.sap.TSAPApplicationServerDestData.Builder(<%=client%>,
+    																					<%=userid%>,
+    																					decryptedPassword_<%=cid%>,
+    																					<%=language%>,
+    																					<%=hostname%>,
+    																					<%=systemnumber%>)
+        																				<%if(useFtpHttp){%>
+        																					.setSAPGUI("2")
+        																				<%}%>
+    																					.setCustomProp(properties_<%=cid%>)
+    																					.build();
+    			<%}else{%>			
+    				destinationData_<%=cid%> = new org.talend.sap.TSAPMessageServerDestData.Builder(<%=client%>,
+    																					<%=userid%>,
+    																					decryptedPassword_<%=cid%>,
+    																					<%=language%>,
+    																					<%=hostname%>,
+    																					<%=systemId %>,
+    						            				 								<%=groupName%>)
+    						            				 								<%if(useFtpHttp){%>
+        																					.setSAPGUI("2")
+        																				<%}%>
+    																					.setCustomProp(properties_<%=cid%>)
+        																				.build();
+    			<%}%>
+    		    <%if(useFtpHttp){%>
+    				com.sap.conn.jco.JCo.setMiddlewareProperty("jco.middleware.allow_start_of_programs", "ftp;sapftp;sapftpa;sapkprotp;http;saphttp;saphttpa");
+    			<%}%>
+    			dest_<%=cid%> = org.talend.sap.TSAPDestinationFactory.getInstance().getDestination(destinationData_<%=cid%>);
+			    // Begins the stateful call sequence for calls to the specified destination.
+				com.sap.conn.jco.JCoContext.begin(dest_<%=cid%>);
+<%
+		if(specify_alias){
+%>
+			}
+<%
+		}
+%>
+	<%}%> 
+	resourceMap.put("conn_<%=cid%>", dest_<%=cid%>);
+	com.sap.conn.jco.JCoRepository repository_<%=cid %> = dest_<%=cid%>.getRepository();
+	
+	com.sap.conn.jco.JCoFunctionTemplate functionTemplate_<%=cid %> = repository_<%=cid %>.getFunctionTemplate(<%=functionName %>);
+	if(functionTemplate_<%=cid %> == null){
+		com.sap.conn.jco.JCoContext.end(dest_<%=cid%>);
+		throw new RuntimeException("The RFC can't support the function: " + <%=functionName %> + ".");
+	}  
+	com.sap.conn.jco.JCoFunction function_<%=cid %> = functionTemplate_<%=cid %>.getFunction();
+	
+	com.sap.conn.jco.JCoParameterList importParameterList_<%=cid %> = function_<%=cid %>.getImportParameterList();
+    com.sap.conn.jco.JCoParameterList exportParameterList_<%=cid %> = function_<%=cid %>.getExportParameterList();
+    com.sap.conn.jco.JCoParameterList tableParameterList_<%=cid %> = function_<%=cid %>.getTableParameterList();
+    
+    com.sap.conn.jco.JCoStructure input_structure_<%=cid %>=null;
+    com.sap.conn.jco.JCoTable input_table_<%=cid %>=null; 
+    com.sap.conn.jco.JCoTable table_input_<%=cid %>=null; 
+<%}%>

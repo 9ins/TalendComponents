@@ -1,0 +1,51 @@
+		<%@ jet 
+			imports="
+			org.talend.core.model.process.INode 
+			org.talend.core.model.process.ElementParameterParser 
+			org.talend.designer.codegen.config.CodeGeneratorArgument
+			org.talend.core.model.process.IConnection
+			org.talend.core.model.process.IConnectionCategory
+			java.util.Map
+			java.util.List
+			org.talend.core.model.metadata.IMetadataTable
+			org.talend.core.model.metadata.IMetadataColumn
+		" 
+		%>
+		
+		<%
+		CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+		INode node = (INode)codeGenArgument.getArgument();
+		String cid = node.getUniqueName();
+		
+		String CONSUMER = ElementParameterParser.getValue(node, "__CONSUMER__");
+		String COMMIT_TYPE = ElementParameterParser.getValue(node, "__COMMIT_TYPE__");
+		
+		List<Map<String, String>> OFFSET_TABLE = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__OFFSET_TABLE__");
+		%>
+		
+		org.apache.kafka.clients.consumer.KafkaConsumer <%=cid%>_CONSUMER_OBJECT = (org.apache.kafka.clients.consumer.KafkaConsumer)globalMap.get(<%=cid%>_CONSUMER);
+		if(<%=cid%>_CONSUMER_OBJECT != null) {
+			//java.util.Map<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> <%=cid%>_commitOffsetMap = (java.util.Map<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata>)globalMap.get("<%=CONSUMER%>_OFFSET_MAP");
+			java.util.Map<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> <%=cid%>_commitOffsetMap = new java.util.HashMap<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata>();
+			String <%=cid%>_topic = ((org.apache.kafka.common.TopicPartition)<%=cid%>_CONSUMER_OBJECT.assignment().iterator().next()).topic();
+			<%
+			for(Map<String, String> map : OFFSET_TABLE) {
+			%>
+				<%=cid%>_commitOffsetMap.put(new org.apache.kafka.common.TopicPartition(<%=cid%>_topic, <%=map.get("PARTITION")%>), new org.apache.kafka.clients.consumer.OffsetAndMetadata(<%=map.get("OFFSET")%>));
+			<%
+			}
+			%>
+			//System.out.println("/////////////// "+<%=cid%>_COMMIT_TYPE);
+			if(<%=cid%>_COMMIT_TYPE.equalsIgnoreCase("SYNC")) {
+			   	<%=cid%>_CONSUMER_OBJECT.commitSync(<%=cid%>_commitOffsetMap);
+			} else {
+		       	<%=cid%>_CONSUMER_OBJECT.commitAsync(<%=cid%>_commitOffsetMap, new org.apache.kafka.clients.consumer.OffsetCommitCallback() {
+			    	public void onComplete(java.util.Map<org.apache.kafka.common.TopicPartition, org.apache.kafka.clients.consumer.OffsetAndMetadata> offsets, java.lang.Exception exception) {
+			        	if(exception != null) {
+			        		exception.printStackTrace();
+			        	}
+			        }
+		    	});
+		    }
+			//System.out.println("COMMIT SYNC by committer: "+<%=cid%>_commitOffsetMap.toString());
+      	}

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<COMPONENT>
+    <HEADER AUTHOR="Kooin-Shin" 
+    		COMPATIBILITY="ALL" 
+    		DATA_AUTO_PROPAGATE="false" 
+    		PARTITIONING="AUTO" 
+    		PLATEFORM="ALL" 
+    		RELEASE_DATE="20191211A" 
+    		SCHEMA_AUTO_PROPAGATE="false" 
+    		SERIAL="" 
+    		STARTABLE="true" 
+    		STATUS="ALPHA" 
+    		VERSION="0.93">
+        <SIGNATURE/>
+    </HEADER>
+    <FAMILIES>
+        <FAMILY>Redis</FAMILY>
+    </FAMILIES>
+    <DOCUMENTATION>
+        <URL>http://www.innoquartz.com/</URL>
+    </DOCUMENTATION>
+    <CONNECTORS>
+        <CONNECTOR CTYPE="FLOW" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="ITERATE" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="SUBJOB_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="COMPONENT_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="RUN_IF" MAX_INPUT="1" MAX_OUTPUT="1"/>
+    </CONNECTORS>
+    <PARAMETERS>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="HOST" NUM_ROW="5" SHOW_IF="true">
+            <DEFAULT>"localhost"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="PORT" NUM_ROW="5" SHOW_IF="true">
+            <DEFAULT>"6379"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="PASSWORD" GROUP="CONN" NAME="PASSWORD" NUM_ROW="10" SHOW_IF="true">
+            <DEFAULT>""</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="TEXT" GROUP="CONN" NAME="TIMEOUT" NUM_ROW="15" SHOW_IF="true">
+            <DEFAULT>"30000"</DEFAULT>
+        </PARAMETER>
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="CONN" NAME="CODEC" NUM_ROW="20" SHOW_IF="true">
+            <ITEMS DEFAULT="UTF8">
+                <ITEM NAME="ASCII" VALUE="ASCII"/>
+                <ITEM NAME="UTF8" VALUE="UTF8"/>
+            </ITEMS>
+        </PARAMETER>
+    </PARAMETERS>
+    <ADVANCED_PARAMETERS/>
+    <CODEGENERATION>
+        <IMPORTS>
+            <IMPORT MODULE="lettuce-core-5.2.1.RELEASE.jar" NAME="lettuce-core-5.2.1.RELEASE" REQUIRED="true"/>
+            <IMPORT MODULE="netty-all-4.1.43.Final.jar" NAME="netty-all-4.1.43.Final" REQUIRED="true"/>
+            <IMPORT MODULE="reactive-streams-1.0.3.jar" NAME="reactive-streams-1.0.3" REQUIRED="true"/>
+            <IMPORT MODULE="reactor-core-3.3.0.RELEASE.jar" NAME="reactor-core-3.3.0.RELEASE.jar" REQUIRED="true"/>
+        </IMPORTS>
+    </CODEGENERATION>
+    <RETURNS/>
+</COMPONENT>

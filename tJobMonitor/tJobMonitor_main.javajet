@@ -1,0 +1,97 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.AbstractNode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable  
+		org.talend.core.model.metadata.IMetadataColumn  
+		org.talend.core.model.process.IConnection  
+		org.talend.core.model.process.IConnectionCategory 
+		org.talend.designer.codegen.config.CodeGeneratorArgument  
+		org.talend.core.model.metadata.types.JavaTypesManager  
+		org.talend.core.model.metadata.types.JavaType 
+		java.lang.management.ManagementFactory 
+		javax.management.AttributeNotFoundException 
+		javax.management.InstanceNotFoundException 
+		javax.management.MBeanException 
+		javax.management.MBeanServer 
+		javax.management.MalformedObjectNameException
+		javax.management.ObjectName
+		javax.management.ReflectionException
+		java.util.*
+	" 
+%>
+
+<%
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+INode node = (INode)codeGenArgument.getArgument();
+String cid = node.getUniqueName();
+
+String inputRowName = null;
+List< ? extends IConnection> inConns = node.getIncomingConnections();
+if (inConns != null && !inConns.isEmpty()) {
+	IConnection inConn = inConns.get(0);
+	inputRowName = inConn.getName();
+}
+String monitorRowName = null;
+%>
+
+<%
+List< ? extends IConnection> outConns_ = node.getOutgoingConnections("FLOW");
+if(outConns_ != null && !outConns_.isEmpty()) {
+	for(IConnection outConn : outConns_) {
+		String flowRowName = outConn.getName();
+		List<IMetadataTable> metaTables = node.getMetadataList();
+		for(IMetadataTable metaTable : metaTables) {
+			if(metaTable.getTableName().equals(cid)) {
+				List<IMetadataColumn> columns = metaTable.getListColumns();
+				for(IMetadataColumn column : columns) { //3
+					String columnNm = column.getLabel();
+					if(inputRowName != null) {
+					%>
+					<%=flowRowName%>.<%=columnNm%> = <%=inputRowName%>.<%=columnNm%>;
+					<%
+					}
+				}
+			}
+		}
+	}
+}
+%>
+
+if(<%=cid%>_monitorList.size() > 0) {
+	java.util.HashMap<String, String> <%=cid%>_map1 = <%=cid%>_monitorList.remove(0);
+	<%	
+	List< ? extends IConnection> outConns__ = node.getOutgoingConnections("MONITOR");
+	if(outConns__ != null && !outConns__.isEmpty()) { //1
+		for(IConnection outConn : outConns__) {	//22
+			monitorRowName = outConn.getName();
+			List<IMetadataTable> metaTables = node.getMetadataList();
+			for(IMetadataTable metaTable : metaTables) { //333
+				if(metaTable.getTableName().equals("MONITOR")) { //4444
+					%>
+					<%=monitorRowName%> = new <%=monitorRowName%>Struct();
+					<%
+					List<IMetadataColumn> columns = metaTable.getListColumns();
+					for(IMetadataColumn column : columns) { //55555
+						String columnNm = column.getLabel();
+						%>
+						<%=monitorRowName%>.<%=columnNm%> = <%=cid%>_map1.get("<%=columnNm%>");
+						<%
+					} //55555
+				} //4444
+			} //333
+		} //22
+	} //1
+	%>
+	//globalMap.put("<%=cid%>_COUNT", <%=cid%>_COUNT++);		
+} else {
+	<%
+	if(monitorRowName != null) {
+	%>
+	<%=monitorRowName%> = null;
+	<%
+	}
+	%>
+}
+

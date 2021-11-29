@@ -1,0 +1,62 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    String delimiter				= "+"+ElementParameterParser.getValue(node, "__FIELD_DELIMITER__");
+    boolean dieOnError				= "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));    
+%>
+
+try {
+	<%
+	List< ? extends IConnection> inConns = node.getIncomingConnections();
+	if(inConns != null && !inConns.isEmpty()) {
+		for(IConnection inConn : inConns) {
+			String inName = inConn.getName();
+			IMetadataTable metaTable = inConn.getMetadataTable();
+			List<IMetadataColumn> columns = metaTable.getListColumns();
+			%>
+				String <%=cid%>_message = "";
+			<%		
+			int cnt = 1;
+			for(IMetadataColumn column : columns) { //3
+				if(cnt == columns.size()) {
+					delimiter = "";
+				}
+				String columnNm = column.getLabel();
+			%>
+				<%=cid%>_message += <%=inName%>.<%=columnNm%><%=delimiter%>;
+			<%
+				cnt++;
+			}
+			%>
+			if(!<%=cid%>_message.equals("")) {
+				javax.jms.TextMessage <%=cid%>_text = <%=cid%>_session.createTextMessage(<%=cid%>_message);
+				<%=cid%>_producer.send(<%=cid%>_text);
+			}
+			<%
+		}
+	}
+	%>
+} catch(Exception e) {
+	if(<%=dieOnError%>) {
+		throw e;
+	} else {
+		e.printStackTrace();
+	}
+}

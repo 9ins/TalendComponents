@@ -1,0 +1,65 @@
+<%@ jet 
+imports="
+org.talend.core.model.process.INode
+org.talend.core.model.process.ElementParameterParser
+org.talend.core.model.metadata.IMetadataTable 
+org.talend.core.model.metadata.IMetadataColumn 
+org.talend.core.model.process.IConnection
+org.talend.core.model.process.IConnectionCategory
+org.talend.designer.codegen.config.CodeGeneratorArgument
+org.talend.core.model.metadata.types.JavaTypesManager
+org.talend.core.model.metadata.types.JavaType
+" 
+%> 
+
+<% 
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+INode node = (INode)codeGenArgument.getArgument();
+String cid = node.getUniqueName();
+%>
+
+<%	
+//String sentence = ElementParameterParser.getValue(node, "__MYPAR1__");
+//String consoleout = ElementParameterParser.getValue(node, "__MYPAR2__");
+//int iterations = Integer.parseInt(ElementParameterParser.getValue(node, "__ITERATION1__"));
+String outputFile = ElementParameterParser.getValue(node, "__OUTPUTFILE__");
+%> 
+
+int nb_line_<%=cid %> = 0;
+java.io.FileWriter fw_<%=cid %> = new java.io.FileWriter( <%=outputFile %> );
+java.io.PrintWriter pw_<%=cid %> = new java.io.PrintWriter( fw_<%=cid %> );
+pw_<%=cid %>.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"); // default xml header 
+pw_<%=cid %>.println("<TABLE>");
+pw_<%=cid %>.println(" <METADATA>"); 
+
+<%
+IMetadataTable preMetadata = null;
+if ((node.getIncomingConnections()!=null)&&(node.getIncomingConnections().size()>0))
+{
+	preMetadata = node.getIncomingConnections().get(0).getMetadataTable();
+	
+	java.util.List<IMetadataColumn> columns = preMetadata.getListColumns();
+	for (int i = 0; i < columns.size(); i++)
+	{
+ 		IMetadataColumn column = columns.get(i);
+%> 
+// ....we will place some java output code here
+		pw_<%=cid %>.println(" <COLUMN>");
+		pw_<%=cid %>.println(" <NAME><%=column.getLabel() %></NAME>");
+		pw_<%=cid %>.println(" <TYPE><%=column.getTalendType() %></TYPE>");
+		pw_<%=cid %>.println(" <LENGTH><%=column.getLength() %></LENGTH>");
+		pw_<%=cid %>.println(" </COLUMN>");
+<% 
+	}
+} 
+%> 
+
+pw_<%=cid %>.println(" </METADATA>"); 
+
+pw_<%=cid %>.println(" <DATA>"); 
+
+
+
+
+
+

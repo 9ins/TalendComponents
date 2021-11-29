@@ -1,0 +1,42 @@
+<%@ jet
+imports="
+org.talend.core.model.metadata.IMetadataColumn
+org.talend.core.model.metadata.IMetadataTable
+org.talend.core.model.process.EConnectionType
+org.talend.core.model.process.IConnection
+org.talend.core.model.process.INode
+org.talend.designer.codegen.config.CodeGeneratorArgument
+java.util.List
+"
+%>
+
+<%
+CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument; 
+INode node = (INode)codeGenArgument.getArgument();
+String cid = node.getUniqueName();
+%>
+
+<%
+IMetadataTable preMetadata = null;
+if ((node.getIncomingConnections()!=null)&&(node.getIncomingConnections().size()>0))
+{
+	preMetadata = node.getIncomingConnections().get(0).getMetadataTable();
+	String inRowName = node.getIncomingConnections().get(0).getName(); 
+%> 
+	pw_<%=cid %>.println("  <RECORD>");
+<% 	
+	List<IMetadataColumn> columns = preMetadata.getListColumns();
+	for (int i = 0; i < columns.size(); i++) 
+	{
+ 		IMetadataColumn column = columns.get(i);
+%>
+		pw_<%=cid %>.println("  <<%=column.getLabel() %>>"+<%=inRowName %>.<%=column.getLabel() %>+"</<%=column.getLabel() %>>");
+		System.out.println("<%=inRowName %>.<%=column.getLabel() %>");
+<% 
+	}
+%>
+	pw_<%=cid %>.println("  </RECORD>");
+	nb_line_<%=cid %>++;
+<%
+}
+%>

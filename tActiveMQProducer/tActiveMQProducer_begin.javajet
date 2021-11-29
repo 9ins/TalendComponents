@@ -1,0 +1,61 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();
+    
+    String messageEncoding			= ElementParameterParser.getValue(node, "__MESSAGE_CHARSET__");
+    String delimiter				= ElementParameterParser.getValue(node, "__FIELD_DELIMITER__");
+    String host 				 	= ElementParameterParser.getValue(node, "__HOST__");
+    int port				 		= Integer.parseInt(ElementParameterParser.getValue(node, "__PORT__").trim());
+    String userName	 				= ElementParameterParser.getValue(node, "__USER_NAME__");
+    String password	 				= ElementParameterParser.getValue(node, "__USER_PASSWORD__");
+    
+    String queueName				= ElementParameterParser.getValue(node, "__QUEUE_NAME__");
+    String clientID					= ElementParameterParser.getValue(node, "__CLIENT_ID__");
+    String queueType				= ElementParameterParser.getValue(node, "__QUEUE_TYPE__");
+    String sessionMode				= ElementParameterParser.getValue(node, "__SESSION_MODE__");
+    String deliveryMode				= ElementParameterParser.getValue(node, "__DELIVERY_MODE__");
+    String transactSession			= ElementParameterParser.getValue(node, "__TRANSACT_SESSION__");
+    
+    boolean dieOnError				= "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));    	
+%>
+String <%=cid%>_host = (!<%=host%>.startsWith("tcp://"))?"tcp://"+<%=host%>:<%=host%>;
+
+org.apache.activemq.ActiveMQConnectionFactory <%=cid%>_factory = new org.apache.activemq.ActiveMQConnectionFactory(<%=cid%>_host+":"+<%=port%>);
+if(!<%=userName%>.equals("")) {
+	<%=cid%>_factory.setUserName(<%=userName%>);
+}
+if(!<%=password%>.equals("")) {
+	<%=cid%>_factory.setPassword(<%=password%>);
+}
+
+javax.jms.Connection <%=cid%>_connection = <%=cid%>_factory.createConnection();
+<%=cid%>_connection.setClientID(<%=clientID%>);
+<%=cid%>_connection.start();
+
+javax.jms.Session <%=cid%>_session = <%=cid%>_connection.createSession(<%=transactSession%>, javax.jms.Session.<%=sessionMode%>);
+
+javax.jms.MessageProducer <%=cid%>_producer = null;
+if("<%=queueType%>".equals("Queue")) {
+	javax.jms.Queue <%=cid%>_queue = <%=cid%>_session.createQueue(<%=queueName%>);
+	<%=cid%>_producer = <%=cid%>_session.createProducer(<%=cid%>_queue);
+} else {
+	javax.jms.Topic <%=cid%>_topic = <%=cid%>_session.createTopic(<%=queueName%>);
+	<%=cid%>_producer = <%=cid%>_session.createProducer(<%=cid%>_topic);
+}
+<%=cid%>_producer.setDeliveryMode(javax.jms.DeliveryMode.<%=deliveryMode%>);

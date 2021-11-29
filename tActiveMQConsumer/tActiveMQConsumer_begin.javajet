@@ -1,0 +1,63 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    String messageEncoding			= ElementParameterParser.getValue(node, "__MESSAGE_CHARSET__");
+    String delimiter				= ElementParameterParser.getValue(node, "__FIELD_DELIMITER__");
+    String host 				 	= ElementParameterParser.getValue(node, "__HOST__");
+    int port				 		= Integer.parseInt(ElementParameterParser.getValue(node, "__PORT__").trim());
+    String queueType	   		    = ElementParameterParser.getValue(node, "__QUEUE_TYPE__");
+    String queueName		 		= ElementParameterParser.getValue(node, "__QUEUE_NAME__");
+    String clientID			 		= ElementParameterParser.getValue(node, "__CLIENT_ID__");
+    String userName	 				= ElementParameterParser.getValue(node, "__USER_NAME__");
+    String password	 				= ElementParameterParser.getValue(node, "__USER_PASSWORD__");    
+    String durable		   		    = ElementParameterParser.getValue(node, "__DURABLE_SUBSCRIBER__");
+    String sessionMode	   		    = ElementParameterParser.getValue(node, "__SESSION_MODE__");
+    String deliveryMode	   		    = ElementParameterParser.getValue(node, "__DELIVERY_MODE__");    
+    String transactMode	   		    = ElementParameterParser.getValue(node, "__TRANSACT_SESSION__");
+    long timeout			 		= Long.parseLong(ElementParameterParser.getValue(node, "__RECEIVE_TIMEOUT__").trim());
+    boolean dieOnError				= "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));   
+%>
+
+String <%=cid%>_host = (!<%=host%>.startsWith("tcp://"))?"tcp://"+<%=host%>+":"+<%=port%>:<%=host%>+":"+<%=port%>;
+
+org.apache.activemq.ActiveMQConnectionFactory <%=cid%>_factory = new org.apache.activemq.ActiveMQConnectionFactory(<%=cid%>_host);
+<%=cid%>_factory.setClientID(<%=clientID%>);
+if(!<%=userName%>.equals("")) {
+	<%=cid%>_factory.setUserName(<%=userName%>);
+}
+if(!<%=password%>.equals("")) {
+	<%=cid%>_factory.setPassword(<%=password%>);
+}
+
+javax.jms.Connection <%=cid%>_connection = <%=cid%>_factory.createConnection();
+<%=cid%>_connection.start();
+javax.jms.Session <%=cid%>_session = <%=cid%>_connection.createSession(<%=transactMode%>, javax.jms.Session.<%=sessionMode%>);
+
+javax.jms.MessageConsumer <%=cid%>_consumer = null;
+if("<%=queueType%>".equals("Queue")) {
+	<%=cid%>_consumer = <%=cid%>_session.createConsumer(<%=cid%>_session.createQueue(<%=queueName%>));
+} else {
+	<%=cid%>_consumer = <%=cid%>_session.createConsumer(<%=cid%>_session.createTopic(<%=queueName%>));
+}
+
+boolean <%=cid%>_isExit = false;
+javax.jms.Message <%=cid%>_message = null;
+
+while(!<%=cid%>_isExit) {

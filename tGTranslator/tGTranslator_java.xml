@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<COMPONENT> 
+  <HEADER AUTHOR="Kooin-Shin" 
+  		  COMPATIBILITY="ALL" 
+  		  DATA_AUTO_PROPAGATE="true" 
+  		  PLATEFORM="ALL" 
+  		  RELEASE_DATE="20190904A" 
+  		  SERIAL="" 
+  		  STARTABLE="false" 
+  		  STATUS="ALPHA" 
+  		  VERSION="0.93"> 
+    <SIGNATURE/> 
+  </HEADER>  
+  
+  <FAMILIES> 
+    <FAMILY>Sample</FAMILY> 
+  </FAMILIES>
+    
+  <DOCUMENTATION> 
+    <URL/> 
+  </DOCUMENTATION>
+    
+  <CONNECTORS> 
+    <CONNECTOR CTYPE="FLOW" MAX_INPUT="1"/>  
+  </CONNECTORS>
+    
+  <PARAMETERS> 
+    <PARAMETER NAME="TRANSLATE_SCHEMA" FIELD="SCHEMA_TYPE" NUM_ROW="1" REQUIRED="true" SHOW="true"/> 
+	<PARAMETER NAME="API_KEY" FIELD="TEXT" NUM_ROW="10" SHOW="true">
+		<DEFAULT>"api-key here"</DEFAULT>
+	</PARAMETER>
+	<PARAMETER FIELD="TABLE" NAME="TRANSLATE_COLS" NUM_ROW="21" NB_LINES="6" REQUIRED="true" SHOW="true">
+      <ITEMS BASED_ON_SCHEMA="true">
+        <ITEM NAME="IS_TRANSLATE" FIELD="CHECK" VALUE="true"/>
+        <ITEM NAME="TARGET_LANG" FIELD="CLOSED_LIST"> 
+   	   		<ITEMS DEFAULT="ENGLISH">
+				<ITEM NAME="SLOVAK" VALUE="sk" />
+				<ITEM NAME="RUSSIAN" VALUE="ru" />
+				<ITEM NAME="HEBREW" VALUE="iw" />
+				<ITEM NAME="BELARUSIAN" VALUE="be" />
+				<ITEM NAME="SERBIAN" VALUE="sr" />
+				<ITEM NAME="SWEDISH" VALUE="sv" />
+				<ITEM NAME="TURKISH" VALUE="tr" />
+				<ITEM NAME="UKRAINIAN" VALUE="uk" />
+				<ITEM NAME="ARABIC" VALUE="ar" />
+				<ITEM NAME="KANNADA" VALUE="kn" />
+				<ITEM NAME="PORTUGUESE" VALUE="pt" />
+				<ITEM NAME="CATALAN" VALUE="ca" />
+				<ITEM NAME="MALAY" VALUE="ms" />
+				<ITEM NAME="SPANISH" VALUE="es" />
+				<ITEM NAME="HINDI" VALUE="hi" />
+				<ITEM NAME="THAI" VALUE="th" />
+				<ITEM NAME="NORWEGIAN" VALUE="no" />
+				<ITEM NAME="HAITIAN_CREOLE" VALUE="ht" />
+				<ITEM NAME="SWAHILI" VALUE="sw" />
+				<ITEM NAME="URDU" VALUE="ur" />
+				<ITEM NAME="ROMANIAN" VALUE="ro" />
+				<ITEM NAME="YIDDISH" VALUE="yi" />
+				<ITEM NAME="MACEDONIAN" VALUE="mk" />
+				<ITEM NAME="JAPANESE" VALUE="ja" />
+				<ITEM NAME="ESTONIAN" VALUE="et" />
+				<ITEM NAME="IRISH" VALUE="ga" />
+				<ITEM NAME="BENGALI" VALUE="bn" />
+				<ITEM NAME="GUJARATI" VALUE="gu" />
+				<ITEM NAME="ICELANDIC" VALUE="is" />
+				<ITEM NAME="LATIN" VALUE="la" />
+				<ITEM NAME="CHINESE_SIMPLIFIED" VALUE="zh-CN" />
+				<ITEM NAME="ITALIAN" VALUE="it" />
+				<ITEM NAME="AFRIKAANS" VALUE="af" />
+				<ITEM NAME="PERSIAN" VALUE="fa" />
+				<ITEM NAME="GERMAN" VALUE="de" />
+				<ITEM NAME="SLOVENIAN" VALUE="sl" />
+				<ITEM NAME="AZERBAIJANI" VALUE="az" />
+				<ITEM NAME="TELUGU" VALUE="te" />
+				<ITEM NAME="FILIPINO" VALUE="tl" />
+				<ITEM NAME="FRENCH" VALUE="fr" />
+				<ITEM NAME="MALTESE" VALUE="mt" />
+				<ITEM NAME="INDONESIAN" VALUE="id" />
+				<ITEM NAME="ESPERANTO" VALUE="eo" />
+				<ITEM NAME="FINNISH" VALUE="fi" />
+				<ITEM NAME="GEORGIAN" VALUE="ka" />
+				<ITEM NAME="ALBANIAN" VALUE="sq" />
+				<ITEM NAME="BASQUE" VALUE="eu" />
+				<ITEM NAME="POLISH" VALUE="pl" />
+				<ITEM NAME="LITHUANIAN" VALUE="lt" />
+				<ITEM NAME="LATVIAN" VALUE="lv" />
+				<ITEM NAME="KOREAN" VALUE="ko" />
+				<ITEM NAME="BULGARIAN" VALUE="bg" />
+				<ITEM NAME="WELSH" VALUE="cy" />
+				<ITEM NAME="TAMIL" VALUE="ta" />
+				<ITEM NAME="CROATIAN" VALUE="hr" />
+				<ITEM NAME="ENGLISH" VALUE="en" />
+				<ITEM NAME="CHINESE_TRADITIONAL" VALUE="zh-TW" />
+				<ITEM NAME="DANISH" VALUE="da" />
+				<ITEM NAME="VIETNAMESE" VALUE="vi" />
+				<ITEM NAME="CZECH" VALUE="cs" />
+				<ITEM NAME="HUNGARIAN" VALUE="hu" />
+				<ITEM NAME="GALICIAN" VALUE="gl" />
+				<ITEM NAME="DUTCH" VALUE="nl" />
+				<ITEM NAME="GREEK" VALUE="el" />
+   	   		</ITEMS>
+        </ITEM>
+      </ITEMS>
+    </PARAMETER> 
+  </PARAMETERS>
+    
+  <ADVANCED_PARAMETERS> 
+    <PARAMETER FIELD="CHECK" NAME="DIE_ON_ERROR" NUM_ROW="1"/> 
+  </ADVANCED_PARAMETERS>
+    
+  <CODEGENERATION>  
+    <IMPORTS> 
+      <IMPORT MODULE="commons-codec-1.4.jar" 	NAME="commons-codec-1.4" REQUIRED="true"/> 
+      <IMPORT MODULE="commons-lang3-3.0.1.jar" 	NAME="commons-lang3-3.0.1" REQUIRED="true"/> 
+      <IMPORT MODULE="commons-logging-1.1.1.jar" NAME="commons-logging-1.1.1" REQUIRED="true"/> 
+      <IMPORT MODULE="google-translate-api-v2-java-core-0.52.jar" NAME="google-translate-api-v2-java-core-0.52" REQUIRED="true"/> 
+      <IMPORT MODULE="httpclient-4.1.2.jar" 	NAME="httpclient-4.1.2" REQUIRED="true"/> 
+      <IMPORT MODULE="httpclient-cache-4.1.2.jar" NAME="httpclient-cache-4.1.2" REQUIRED="true"/> 
+      <IMPORT MODULE="httpcore-4.1.2.jar" 		NAME="httpcore-4.1.2" REQUIRED="true"/> 
+      <IMPORT MODULE="jackson-core-asl-1.9.0.jar" NAME="jackson-core-asl-1.9.0" REQUIRED="true"/> 
+      <IMPORT MODULE="jackson-jaxrs-1.9.0.jar" 	NAME="jackson-jaxrs-1.9.0" REQUIRED="true"/> 
+      <IMPORT MODULE="jackson-mapper-asl-1.9.0.jar" NAME="jackson-mapper-asl-1.9.0" REQUIRED="true"/> 
+      <IMPORT MODULE="jackson-xc-1.9.0.jar" 	NAME="jackson-xc-1.9.0" REQUIRED="true"/> 
+      <IMPORT MODULE="slf4j-api-1.6.2.jar" 		NAME="slf4j-api-1.6.2" REQUIRED="true"/> 
+    </IMPORTS> 
+  </CODEGENERATION>  
+  
+  <RETURNS> 
+    <RETURN AVAILABILITY="AFTER" NAME="NB_LINE" TYPE="id_Integer"/> 
+  </RETURNS> 
+</COMPONENT>

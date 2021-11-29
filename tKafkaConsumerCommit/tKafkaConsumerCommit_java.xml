@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<COMPONENT>
+    <HEADER AUTHOR="Kooin-Shin" 
+    		COMPATIBILITY="ALL" 
+    		DATA_AUTO_PROPAGATE="true" 
+    		HAS_CONDITIONAL_OUTPUTS="false" 
+    		PARTITIONING="AUTO" 
+    		PLATEFORM="ALL" 
+    		RELEASE_DATE="20200609A" 
+    		SCHEMA_AUTO_PROPAGATE="true" 
+    		SERIAL="" 
+    		STARTABLE="true" 
+    		STATUS="ALPHA" 
+    		VERSION="0.93">
+        <SIGNATURE/>
+    </HEADER>
+    
+    <FAMILIES>
+        <FAMILY>ChaosToCosmos</FAMILY> 
+    </FAMILIES>
+    
+    <DOCUMENTATION>
+        <URL>http://www.chaostocosmos.org/</URL>
+    </DOCUMENTATION>
+    
+    <CONNECTORS>
+        <CONNECTOR CTYPE="FLOW" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="ITERATE" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="SUBJOB_OK" MAX_INPUT="1" MAX_OUTPUT="1"/>
+        <CONNECTOR CTYPE="COMPONENT_OK" MAX_INPUT="93" MAX_OUTPUT="93"/>
+        <CONNECTOR CTYPE="RUN_IF" MAX_INPUT="93" MAX_OUTPUT="93"/>
+    </CONNECTORS>
+    
+    <PARAMETERS>
+		<PARAMETER DYNAMIC_SETTINGS="true" FIELD="COMPONENT_LIST" FILTER="tKafkaConsumer" GROUP="CONSUMER_GROUP" NAME="CONSUMER" NUM_ROW="1" REQUIRED="true"/>
+        <PARAMETER FIELD="CLOSED_LIST" GROUP="CONSUMER_GROUP" NAME="COMMIT_TYPE" NUM_ROW="1" SHOW_IF="true">
+            <ITEMS DEFAULT="SYNC">
+                <ITEM NAME="SYNC" VALUE="SYNC"/>
+                <ITEM NAME="ASYNC" VALUE="ASYNC"/>
+            </ITEMS>
+        </PARAMETER>
+		<PARAMETER NAME="OFFSET_TABLE" FIELD="TABLE" GROUP="CONSUMER_GROUP" NUM_ROW="10" NB_LINES="5" SHOW="true" >
+			<ITEMS> 
+	    	   	<ITEM NAME="PARTITION" FIELD="OPENED_LIST">
+	    	   		<ITEMS DEFAULT="0">
+	    	   			<ITEM NAME="0"  VALUE="0" />
+	    	   			<ITEM NAME="1" 	VALUE="1" />
+	    	   			<ITEM NAME="2" 	VALUE="2" />
+	    	   			<ITEM NAME="3" 	VALUE="3" />
+	    	   			<ITEM NAME="4" 	VALUE="4" />
+	    	   			<ITEM NAME="5" 	VALUE="5" />
+	    	   			<ITEM NAME="6" 	VALUE="6" />
+	    	   			<ITEM NAME="7" 	VALUE="7" />
+	    	   			<ITEM NAME="8" 	VALUE="8" />
+	    	   			<ITEM NAME="9" 	VALUE="9" />			
+	    	   		</ITEMS>	    	   	
+	    	   	</ITEM>
+	       		<ITEM NAME="OFFSET" VALUE="0"/> 
+			</ITEMS>
+	    </PARAMETER>        
+        <PARAMETER FIELD="LABEL" NAME="VERSION" NUM_ROW="100" SHOW="true">
+        	<DEFAULT>v7.2.1_20200706</DEFAULT>
+        </PARAMETER>
+    </PARAMETERS>
+    
+    <ADVANCED_PARAMETERS>
+    </ADVANCED_PARAMETERS>
+    
+    <CODEGENERATION>
+        <IMPORTS>
+
+        </IMPORTS>
+    </CODEGENERATION>
+    
+    <RETURNS>
+    </RETURNS>
+</COMPONENT>

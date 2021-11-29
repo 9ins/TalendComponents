@@ -1,0 +1,57 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+	String VALUE_TYPE = ElementParameterParser.getValue(node, "__VALUE_TYPE__");
+	
+	String BROKER_LIST = ElementParameterParser.getValue(node, "__BROKER_LIST__");
+	String CLIENT_ID = ElementParameterParser.getValue(node, "__CLIENT_ID__");
+	String ACKS = ElementParameterParser.getValue(node, "__ACKS__");
+	String COMPRESSTION = ElementParameterParser.getValue(node, "__COMPRESSTION__");
+	String BUFFER_MEMORY = ElementParameterParser.getValue(node, "__BUFFER_MEMORY__");
+			
+	List<Map<String, String>> CONFIG_TABLE = (List<Map<String,String>>)ElementParameterParser.getObjectValue(node,"__CONFIG_TABLE__");
+	boolean DIE_ON_ERROR = Boolean.parseBoolean(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));
+    
+
+%>
+
+String <%=cid%>_BROKER_LIST = <%=BROKER_LIST%>;
+String <%=cid%>_CLIENT_ID = <%=CLIENT_ID%>;
+String <%=cid%>_ACKS = "<%=ACKS%>";
+String <%=cid%>_COMPRESSTION = "<%=COMPRESSTION%>";
+long <%=cid%>_BUFFER_MEMORY = Long.parseLong(<%=BUFFER_MEMORY%>);
+boolean <%=cid%>_DIE_ON_ERROR = <%=DIE_ON_ERROR%>;
+
+java.util.Properties <%=cid%>_configs = new java.util.Properties();
+<%
+for(Map<String, String> map : CONFIG_TABLE) {
+%>
+	<%=cid%>_configs.put("<%=map.get("CONFIG_KEY")%>".trim(), <%=map.get("CONFIG_VALUE")%>.trim());
+<%
+}
+%>
+<%=cid%>_configs.put("bootstrap.servers", <%=cid%>_BROKER_LIST);     // kafka server host port
+<%=cid%>_configs.put("client.id", <%=cid%>_CLIENT_ID);
+     			 
+<%=cid%>_configs.put(org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.<%=VALUE_TYPE.equalsIgnoreCase("STRING")?"String":"ByteArray"%>Serializer.class.getName());
+<%=cid%>_configs.put(org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.<%=VALUE_TYPE.equalsIgnoreCase("STRING")?"String":"ByteArray"%>Serializer.class.getName());    
+
+org.apache.kafka.clients.producer.KafkaProducer <%=cid%>_producer = new org.apache.kafka.clients.producer.KafkaProducer(<%=cid%>_configs);
+

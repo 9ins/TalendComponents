@@ -1,0 +1,88 @@
+<%@ jet 
+imports="
+org.talend.core.model.process.* 
+org.talend.core.model.metadata.* 
+org.talend.designer.codegen.config.* 
+java.util.* 
+" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    String accessKey = ElementParameterParser.getValue(node, "__ACCESS_KEY__");
+    String secretKey = ElementParameterParser.getValue(node, "__SECRET_KEY__");
+    boolean useInheritedRole = "true".equals(ElementParameterParser.getValue(node, "__INHERIT_AWS_ROLE__"));
+    if(useInheritedRole) {
+    	accessKey = null;
+    	secretKey = null;
+    }
+    String region = ElementParameterParser.getValue(node, "__REGION__");
+    String smsType = ElementParameterParser.getValue(node, "__SMS_TYPE__");
+    String maxPrice = ElementParameterParser.getValue(node, "__MAX_PRICE__");
+    String senderId = ElementParameterParser.getValue(node, "__SENDER_ID__");
+    
+	boolean createTopic = "true".equals(ElementParameterParser.getValue(node, "__CREATE_TOPIC__"));
+	String topicName = ElementParameterParser.getValue(node, "__TOPIC_NAME__");
+	if(!createTopic) {
+		topicName = null;
+	}	
+	boolean useTopicArn = "true".equals(ElementParameterParser.getValue(node, "__USE_TOPIC_ARN__"));
+	String topicArn = ElementParameterParser.getValue(node, "__TOPIC_ARN__");
+	if(!useTopicArn) {
+		topicArn = null;
+	}
+	boolean subscribeYn = "true".equals(ElementParameterParser.getValue(node, "__SUBSCRIBE_TOPIC__"));
+	String endPoints = ElementParameterParser.getValue(node, "__END_POINTS__");
+	String message = ElementParameterParser.getValue(node, "__MESSAGE__");	
+	boolean printArn = "true".equals(ElementParameterParser.getValue(node, "__PRINT_ARN__"));
+	
+	boolean dieOnError = "true".equals(ElementParameterParser.getValue(node, "__DIE_ON_ERROR__"));    
+%>
+
+try {
+	com.innoquartz.designer.amazon.sns.AmazonSNS sns_<%=cid%> = new com.innoquartz.designer.amazon.sns.AmazonSNS(<%=accessKey%>, <%=secretKey%>, <%=region%>, <%=topicName%>, <%=senderId%>, <%=maxPrice%>, <%=smsType%>, <%=printArn%>);
+	String endPoints_<%=cid%> = <%=endPoints%>;
+	java.util.List<String> endPointList_<%=cid%> = java.util.Arrays.asList(endPoints_<%=cid%>.split(","));
+
+	if(<%=subscribeYn%>)
+	{
+		if(endPointList_<%=cid%> != null) {
+			for(String endPoint_<%=cid%> : endPointList_<%=cid%>) {
+				sns_<%=cid%>.subscribeToTopic("sms", endPoint_<%=cid%>); 
+			}
+		}
+	}
+	
+	String topicArn_<%=cid%> = <%=topicArn%>;
+	String message_<%=cid%> = <%=message%>;
+	String topic_<%=cid%> = <%=topicName%>;
+	
+	if(<%=useTopicArn%>)
+	{
+		if(topicArn_<%=cid%> != null && !topicArn_<%=cid%>.equals(""))
+		{
+			sns_<%=cid%>.sendSMSToTopic(topicArn_<%=cid%>, message_<%=cid%>);
+		} else if(topic_<%=cid%> != null && !topic_<%=cid%>.equals("")) {
+			sns_<%=cid%>.sendSMSToTopic(sns_<%=cid%>.getTopicARN(), message_<%=cid%>);
+		} else {
+			throw new RuntimeException("Don't exist Topic or Topic ARN. Please check Topic or ARN");
+		}
+	} else {
+		if(endPointList_<%=cid%> != null && endPointList_<%=cid%>.size() > 0) {
+			for(String endPoint_<%=cid%> : endPointList_<%=cid%>) {
+				sns_<%=cid%>.sendSMS(endPoint_<%=cid%>, message_<%=cid%>);
+			}
+		}
+	}
+} catch(Exception e) {
+	if(<%=dieOnError%>) {
+		throw e;
+	}
+	e.printStackTrace();
+}
+
+
+
+

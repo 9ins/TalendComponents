@@ -1,0 +1,93 @@
+<%@ jet 
+	imports="
+		org.talend.core.model.process.INode 
+		org.talend.core.model.process.ElementParameterParser 
+		org.talend.core.model.metadata.IMetadataTable 
+		org.talend.core.model.metadata.IMetadataColumn 
+		org.talend.core.model.process.IConnection
+		org.talend.core.model.process.IConnectionCategory
+		org.talend.designer.codegen.config.CodeGeneratorArgument
+		org.talend.core.model.metadata.types.JavaTypesManager
+		org.talend.core.model.metadata.types.JavaType
+		java.util.List 
+    	java.util.Map		
+	" 
+%>
+<% 
+    CodeGeneratorArgument codeGenArgument = (CodeGeneratorArgument) argument;
+    INode node = (INode)codeGenArgument.getArgument();
+    String cid = node.getUniqueName();	
+    
+    long delayOfStart	= Long.parseLong(ElementParameterParser.getValue(node, "__DELAY_OF_START__"));
+    
+   	List< ? extends IConnection> outConns = node.getOutgoingConnections();
+   	if(outConns != null && outConns.size() > 0) {
+	    for(IConnection hConn : outConns) {
+	    	String targetNm = hConn.getTarget().getUniqueName();
+	    	if(hConn.getConnectorName().equals("HANDLER")) {
+	    	%>
+	    		<%=targetNm%>Process(globalMap);
+	    	<%
+	    	}
+	    }
+	}
+%>
+
+<%=cid%>_httpServer.start(<%=delayOfStart%>);
+
+while(<%=cid%>_httpServer.isAlive()) {
+	java.util.Map<String, Object> <%=cid%>_errorMap = <%=cid%>_httpServer.getErrorMap();
+	<%		
+    	List< ? extends IConnection> errConns = node.getOutgoingConnections("ERROR");
+		if (errConns != null && !errConns.isEmpty()) { //1			
+			for(int i=0; i<errConns.size(); i++) { //2
+				IConnection errConn = errConns.get(i);		
+				String connName = errConn.getName();
+				%>
+					<%=connName%> = new <%=connName%>Struct();
+					if(<%=cid%>_errorMap != null) {
+					<%						
+						IMetadataTable metaTable = node.getMetadataList().get(1);
+						List<IMetadataColumn> columns = metaTable.getListColumns();
+						for(int j=0; j<columns.size(); j++) { //5
+							IMetadataColumn column = columns.get(j);							
+							%>
+								<%=connName%>.<%=column.getLabel()%> = <%=cid%>_errorMap.get("<%=column.getLabel()%>")+""; 			
+							<%
+						} //5
+					%>
+					} else {
+						<%=connName%> = null;
+					}
+					<%
+			}//2
+		}//1
+	%>
+	
+	java.util.Map<String, Object> <%=cid%>_monitorMap = <%=cid%>_httpServer.getMonitorMap();
+	<%		
+    	List< ? extends IConnection> moniConns = node.getOutgoingConnections("MONITOR");
+		if (moniConns != null && !moniConns.isEmpty()) { //1
+			for(int i=0; i<moniConns.size(); i++) { //2 
+				IConnection moniConn = moniConns.get(i);
+				String connName = moniConn.getName(); 
+				%>
+					<%=connName%> = new <%=connName%>Struct();
+					if(<%=cid%>_monitorMap != null) {
+					<%
+						IMetadataTable metaTable = node.getMetadataList().get(0);
+						List<IMetadataColumn> columns = metaTable.getListColumns();						
+						for(int j=0; j<columns.size(); j++) { //5
+							IMetadataColumn column = columns.get(j);							
+							%>
+								<%=connName%>.<%=column.getLabel()%> = <%=cid%>_monitorMap.get("<%=column.getLabel()%>")+""; 			
+							<%
+						} //5
+					%>
+					} else {
+						<%=connName%> = null;
+					}				
+				<%
+			}//2
+		}//1
+	%>	
